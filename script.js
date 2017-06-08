@@ -9,9 +9,14 @@
 // 経過時間はイベントに含まれている
 // イベントが発生したとき、(直前のイベント.timeStamp - イベント.timeStamp)をappendする
 
-const inputSelector = document.getElementById('input_selector');
+// 記録する✅
+// MIDI出力する✅
+// DynamicMacroする
+
+const inputSelector = document.getElementById('input_selector')
+const outputSelector = document.getElementById('output_selector')
 const events = document.getElementById('events');
-let inputs
+let inputs, outputs, inputId, outputDevice
 let eventsArray = []
 
 const successCallback = function(access) {
@@ -20,8 +25,17 @@ const successCallback = function(access) {
     const optionEl = document.createElement('option')
     optionEl.text = input.name
     optionEl.value = input.id
-    console.log(inputSelector)
     inputSelector.add(optionEl)
+    input.onmidimessage = handleMIDIMessage
+  }
+
+  outputs = access.outputs
+  for(let output of outputs.values()) {
+    const optionEl = document.createElement('option')
+    optionEl.text = output.name
+    optionEl.value = output.id
+    outputSelector.add(optionEl)
+    outputDevice = output
   }
 }
 const errorCallback = function(msg) {
@@ -29,14 +43,18 @@ const errorCallback = function(msg) {
 }
 
 const handleMIDIMessage = function(e){
+  if(e.target.id != inputId){
+    return
+  }
+
   try {
     const deltaTime = e.timeStamp - eventsArray[eventsArray.length - 1].timeStamp
-    eventsArray.push(deltaTime)
     const time = document.createElement('div')
     time.innerHTML = deltaTime
     events.prepend(time)
-  }catch(err){
-  }
+    eventsArray.push({time: deltaTime})
+  }catch(err){}
+
   const isNoteOn = e.data[0].toString(16) == 90 ? true : false
   const note = e.data[1]
   const velocity = e.data[2]
@@ -49,14 +67,48 @@ const handleMIDIMessage = function(e){
 }
 
 const onChangeInputDevice = function(obj) {
-  const id = obj.options[obj.selectedIndex].value
+  inputId = obj.options[obj.selectedIndex].value
   for(let input of inputs.values()) {
-    if(input.id == id){
+    if(input.id == inputId){
       input.onmidimessage = handleMIDIMessage
     }
   }
 }
 
-//イベントを受け取る
+const onChangeOutputDevice = function(obj) {
+  const id = obj.options[obj.selectedIndex].value
+  for(let output of outputs.values()) {
+    if(output.id == id){
+      outputDevice = output
+    }
+  }
+}
+
+const send = function(array){
+  outputDevice.send(array)
+}
+
+const onClickPlay = function() {
+  timeoutSend()
+}
+
+const timeoutSend = function(){
+  let index = 0
+  co()
+  function co(){
+    const e = eventsArray[index]
+    if(e.data){
+      send(e.data)
+      index++
+      co()
+    }
+    if(e.time){
+      setTimeout(function(){
+        index++
+        co()
+      }, e.time)
+    }
+  }
+}
 
 navigator.requestMIDIAccess().then(successCallback, errorCallback)

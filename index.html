@@ -6,11 +6,13 @@
 <body>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.3/jquery.min.js"></script>
   <h1>Repeano</h1>
-  <form>
-    入力
-    <select id="input_selector" onchange="onChangeInputDevice(this);">
-    </select>
-  </form>
+  input
+  <select id="input_selector" onchange="onChangeInputDevice(this);">
+  </select>
+  output
+  <select id="output_selector" onchange="onChangeOutputDevice(this);">
+  </select>
+  <button id="play" onclick="onClickPlay();">play</button>
   <div id="events">
   </div>
   <script src="script.js"></script>
