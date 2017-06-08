@@ -92,6 +92,10 @@ const onClickPlay = function() {
   timeoutSend()
 }
 
+const onClickClear = function(){
+  clearEvents()
+}
+
 const timeoutSend = function(){
   let index = 0
   co()
@@ -109,6 +113,11 @@ const timeoutSend = function(){
       }, e.time)
     }
   }
+}
+
+const clearEvents = function(){
+  eventsArray = []
+  document.getElementById('events').innerHTML = ''
 }
 
 navigator.requestMIDIAccess().then(successCallback, errorCallback)
