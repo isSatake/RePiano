@@ -88,19 +88,11 @@ const send = function(array){
   outputDevice.send(array)
 }
 
-const onClickPlay = function() {
-  timeoutSend()
-}
-
-const onClickClear = function(){
-  clearEvents()
-}
-
-const timeoutSend = function(){
+const timeoutSend = function(array){
   let index = 0
   co()
   function co(){
-    const e = eventsArray[index]
+    const e = array[index]
     if(e.data){
       send(e.data)
       index++
@@ -118,6 +110,59 @@ const timeoutSend = function(){
 const clearEvents = function(){
   eventsArray = []
   document.getElementById('events').innerHTML = ''
+}
+
+const repeat = function(){
+  // 繰り返し箇所を探す
+  // ベロシティ -> とりあえず無視
+  // デルタタイム -> ± 50ms
+  const _eventsArray = eventsArray.slice() //オリジナル
+  const boundary = [_eventsArray[_eventsArray.length - 2], _eventsArray[_eventsArray.length - 1]]
+  console.log(boundary)
+  let loop = []
+  eventsArray = []
+
+  _eventsArray.forEach((e, index) => {
+    console.log(index)
+    let same = false
+    console.log(compareEvent(_eventsArray[index], boundary[0])+" "+compareEvent(_eventsArray[index+1], boundary[1]))
+    if(compareEvent(_eventsArray[index], boundary[0]) && compareEvent(_eventsArray[index+1], boundary[1])){
+      loop = _eventsArray.slice(index+2)
+      timeoutSend(loop) //TODO timeoutSend(loop, true)→無限ループになるとか
+      return
+    }
+  })
+}
+
+const compareEvent = function(origin, compare){
+  // timeか、dataか
+  const isTimeOrigin = origin.time > 0 ? true : false
+  const isTimeCompare = compare.time > 0 ? true : false
+  if(isTimeOrigin && isTimeCompare){
+    // timeは近いか
+    if(Math.abs(origin.time - compare.time) < 50){
+      return true
+    }
+  }
+  if(!isTimeOrigin && !isTimeCompare){
+    // on/off, noteは同じか
+    if(origin.data[0] == compare.data[0] && origin.data[1] == compare.data[1]){
+      return true
+    }
+  }
+  return false
+}
+
+const onClickPlay = function() {
+  timeoutSend(eventsArray)
+}
+
+const onClickClear = function(){
+  clearEvents()
+}
+
+const onClickRepeat = function(){
+  repeat()
 }
 
 navigator.requestMIDIAccess().then(successCallback, errorCallback)
