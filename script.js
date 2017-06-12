@@ -113,25 +113,31 @@ const clearEvents = function(){
 }
 
 const repeat = function(){
-  // 繰り返し箇所を探す
-  // ベロシティ -> とりあえず無視
-  // デルタタイム -> ± 50ms
   const _eventsArray = eventsArray.slice() //オリジナル
-  const boundary = [_eventsArray[_eventsArray.length - 2], _eventsArray[_eventsArray.length - 1]]
-  console.log(boundary)
-  let loop = []
-  eventsArray = []
+  const boundary = _eventsArray.slice(_eventsArray.length - 4)
+  eventsArray = [] //初期化
 
-  _eventsArray.forEach((e, index) => {
-    console.log(index)
-    let same = false
-    console.log(compareEvent(_eventsArray[index], boundary[0])+" "+compareEvent(_eventsArray[index+1], boundary[1]))
-    if(compareEvent(_eventsArray[index], boundary[0]) && compareEvent(_eventsArray[index+1], boundary[1])){
-      loop = _eventsArray.slice(index+2)
-      timeoutSend(loop) //TODO timeoutSend(loop, true)→無限ループになるとか
+  _eventsArray.reverse().slice(4) //後ろから走査する 最後のboundaryは除く
+  boundary.reverse() //boundaryも合わせる
+
+  //Rule1
+  //(loop >= 2)
+  _eventsArray.forEach((e, index) => { //TODO どこまで走査するか？
+    //boundaryを見つける(loop >= 2)
+    if(compareEvent(_eventsArray[index], boundary[0]) &&
+       compareEvent(_eventsArray[index+1], boundary[1]) &&
+       compareEvent(_eventsArray[index+2], boundary[2]) &&
+       compareEvent(_eventsArray[index+3], boundary[3])) {
+      const loop = boundary.concat(_eventsArray.slice(0, index)) //boundaryのみの場合もある
+      loop = loop.inverse()
+      loop.push(loop.shift()) //先頭のTimeを末尾に
+      timeoutSend(loop.inverse())
       return
     }
   })
+  //(loop = 1)
+  timeoutSend(boundary)
+  return
 }
 
 const compareEvent = function(origin, compare){
@@ -140,17 +146,30 @@ const compareEvent = function(origin, compare){
   const isTimeCompare = compare.time > 0 ? true : false
   if(isTimeOrigin && isTimeCompare){
     // timeは近いか
-    if(Math.abs(origin.time - compare.time) < 50){
+    if(isSameTime(origin.time, compare.time)){
       return true
     }
   }
   if(!isTimeOrigin && !isTimeCompare){
     // on/off, noteは同じか
-    if(origin.data[0] == compare.data[0] && origin.data[1] == compare.data[1]){
+    if(isSameData(origin.data, compare.data)){
       return true
     }
   }
   return false
+}
+
+const isSameTime = function(originTime, compareTime){
+  return Math.abs(originTime - compareTime) < 50
+}
+
+const isSameData = function(originData, compareDate){
+  //TODO TimeClass, DataClassを作りたい
+  let isSame = false
+  isSame = originData[0] == compareData[0]
+  isSame = originData[1] == compareData[1]
+  isSame = Math.abs(originData[2] - compareData[2]) < 20
+  return isSame
 }
 
 const onClickPlay = function() {
