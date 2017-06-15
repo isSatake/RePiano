@@ -9,10 +9,6 @@
 // 経過時間はイベントに含まれている
 // イベントが発生したとき、(直前のイベント.timeStamp - イベント.timeStamp)をappendする
 
-// 記録する✅
-// MIDI出力する✅
-// DynamicMacroする
-
 const inputSelector = document.getElementById('input_selector')
 const outputSelector = document.getElementById('output_selector')
 const events = document.getElementById('events');
@@ -92,6 +88,10 @@ const timeoutSend = function(array){
   let index = 0
   co()
   function co(){
+    console.log(index)
+    if(array.length == index){
+      index = 0
+    }
     const e = array[index]
     if(e.data){
       send(e.data)
@@ -113,37 +113,42 @@ const clearEvents = function(){
 }
 
 const repeat = function(){
-  const _eventsArray = eventsArray.slice() //オリジナル
+  let _eventsArray = eventsArray.slice() //オリジナル
   const boundary = _eventsArray.slice(_eventsArray.length - 4)
   eventsArray = [] //初期化
 
-  _eventsArray.reverse().slice(4) //後ろから走査する 最後のboundaryは除く
+  _eventsArray = _eventsArray.reverse().slice(4) //後ろから走査する boundaryは除く
   boundary.reverse() //boundaryも合わせる
 
   //Rule1
   //(loop >= 2)
   _eventsArray.forEach((e, index) => { //TODO どこまで走査するか？
     //boundaryを見つける(loop >= 2)
+    if(_eventsArray[index+3] === undefined){
+      return
+    }
+    //TODO ↓ぬるぽってそう
     if(compareEvent(_eventsArray[index], boundary[0]) &&
        compareEvent(_eventsArray[index+1], boundary[1]) &&
        compareEvent(_eventsArray[index+2], boundary[2]) &&
        compareEvent(_eventsArray[index+3], boundary[3])) {
-      const loop = boundary.concat(_eventsArray.slice(0, index)) //boundaryのみの場合もある
-      loop = loop.inverse()
+      let loop = boundary.concat(_eventsArray.slice(0, index)) //boundaryのみの場合もある
+      console.log(loop)
+      loop = loop.reverse()
       loop.push(loop.shift()) //先頭のTimeを末尾に
-      timeoutSend(loop.inverse())
+      timeoutSend(loop)
       return
     }
   })
   //(loop = 1)
-  timeoutSend(boundary)
+  // timeoutSend(boundary)
   return
 }
 
 const compareEvent = function(origin, compare){
   // timeか、dataか
-  const isTimeOrigin = origin.time > 0 ? true : false
-  const isTimeCompare = compare.time > 0 ? true : false
+  const isTimeOrigin = origin.hasOwnProperty('time')
+  const isTimeCompare = compare.hasOwnProperty('time')
   if(isTimeOrigin && isTimeCompare){
     // timeは近いか
     if(isSameTime(origin.time, compare.time)){
@@ -163,13 +168,12 @@ const isSameTime = function(originTime, compareTime){
   return Math.abs(originTime - compareTime) < 50
 }
 
-const isSameData = function(originData, compareDate){
+const isSameData = function(originData, compareData){
   //TODO TimeClass, DataClassを作りたい
-  let isSame = false
-  isSame = originData[0] == compareData[0]
-  isSame = originData[1] == compareData[1]
-  isSame = Math.abs(originData[2] - compareData[2]) < 20
-  return isSame
+  return (originData[0] == compareData[0] &&
+          originData[1] == compareData[1]
+          //Math.abs(originData[2] - compareData[2]) < 40
+        )
 }
 
 const onClickPlay = function() {
