@@ -84,12 +84,12 @@ const send = function(array){
   outputDevice.send(array)
 }
 
-const timeoutSend = function(array){
+const timeoutSend = function(array, isInfinity = true){
   let index = 0
   co()
   function co(){
     console.log(index)
-    if(array.length == index){
+    if(array.length == index && isInfinity == true){
       index = 0
     }
     const e = array[index]
@@ -127,7 +127,6 @@ const repeat = function(){
     if(_eventsArray[index+3] === undefined){
       return
     }
-    //TODO ↓ぬるぽってそう
     if(compareEvent(_eventsArray[index], boundary[0]) &&
        compareEvent(_eventsArray[index+1], boundary[1]) &&
        compareEvent(_eventsArray[index+2], boundary[2]) &&
@@ -136,7 +135,7 @@ const repeat = function(){
       console.log(loop)
       loop = loop.reverse()
       loop.push(loop.shift()) //先頭のTimeを末尾に
-      timeoutSend(loop)
+      timeoutSend(loop, true)
       return
     }
   })
@@ -177,7 +176,7 @@ const isSameData = function(originData, compareData){
 }
 
 const onClickPlay = function() {
-  timeoutSend(eventsArray)
+  timeoutSend(eventsArray, false)
 }
 
 const onClickClear = function(){
@@ -186,6 +185,10 @@ const onClickClear = function(){
 
 const onClickRepeat = function(){
   repeat()
+}
+
+const onClickStop = function(){
+  stopRepeat()
 }
 
 navigator.requestMIDIAccess().then(successCallback, errorCallback)
