@@ -14,6 +14,7 @@ const outputSelector = document.getElementById('output_selector')
 const events = document.getElementById('events');
 let inputs, outputs, inputId, outputDevice
 let eventsArray = []
+let isStop = false
 
 const successCallback = function(access) {
   inputs = access.inputs
@@ -88,6 +89,10 @@ const timeoutSend = function(array, isInfinity = true){
   let index = 0
   co()
   function co(){
+    if(isStop == true){
+      isStop = false
+      return
+    }
     console.log(index)
     if(array.length == index && isInfinity == true){
       index = 0
@@ -173,6 +178,10 @@ const isSameData = function(originData, compareData){
           originData[1] == compareData[1]
           //Math.abs(originData[2] - compareData[2]) < 40
         )
+}
+
+const stopRepeat = function() {
+  isStop = true
 }
 
 const onClickPlay = function() {
