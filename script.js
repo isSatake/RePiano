@@ -24,7 +24,6 @@ const successCallback = function(access) {
       inputId = input.id
       input.onmidimessage = handleMIDIMessage
       inputEl.innerHTML = input.name
-      console.log(input.name)
     }
   }
 
@@ -185,4 +184,25 @@ const onClickStop = function(){
   stopRepeat()
 }
 
-navigator.requestMIDIAccess().then(successCallback, errorCallback)
+$(function(){
+  navigator.requestMIDIAccess().then(successCallback, errorCallback)
+
+  $(window).keydown(function(e){
+    switch(e.keyCode){
+      case 80:
+        onClickPlay()
+        break;
+      case 67:
+        onClickClear()
+        break;
+      case 82:
+        onClickRepeat()
+        break;
+      case 83:
+        onClickStop()
+        break;
+      default:
+        break;
+    }
+  })
+})
