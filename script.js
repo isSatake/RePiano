@@ -1,14 +1,3 @@
-// MIDIについて
-// 基本的にイベントとデルタタイム(直前のイベントからの経過時間)の2種類で構成されている
-// トラックごとに管理する場合と、すべてシーケンシャルに保存するパターンがある
-// 普通は前者らしい
-//http://qiita.com/PianoScoreJP/items/71db2907b302793544e9
-
-// ひとまずイベント,デルタタイムをHTMLにappendしていくプログラムを書く
-// デルタタイムをどう扱うか
-// 経過時間はイベントに含まれている
-// イベントが発生したとき、(直前のイベント.timeStamp - イベント.timeStamp)をappendする
-
 const inputEl = document.getElementById('inputdevice')
 const outputEl = document.getElementById('outputdevice')
 const events = document.getElementById('events');
@@ -77,7 +66,6 @@ const timeoutSend = function(array, isInfinity = true){
       isStop = false
       return
     }
-    console.log(index)
     if(array.length == index && isInfinity == true){
       index = 0
     }
@@ -101,36 +89,33 @@ const clearEvents = function(){
   document.getElementById('events').innerHTML = ''
 }
 
+const findRep = function(a, compare) {
+  if(compare === undefined){
+    compare = (x, y) => { return x === y }
+  }
+  const len = a.length;
+  let res = [];
+  let i, j, k
+  //1回半くらい弾いて予測する
+  for(k = 0; k < len - 3; k++){
+    if (len - 4 - k < 0) {
+      continue
+    }
+    if (!compare(a[len - 1], a[len - 3 - k]) ||
+        !compare(a[len - 2], a[len - 4 - k])
+      ) {
+      continue
+    }
+    console.log(k)
+    res = a.slice(len - 3 - k, len - 1)
+  }
+  return res
+}
+
 const repeat = function(){
   let _eventsArray = eventsArray.slice() //オリジナル
-  const boundary = _eventsArray.slice(_eventsArray.length - 4)
-  eventsArray = [] //初期化
-
-  _eventsArray = _eventsArray.reverse().slice(4) //後ろから走査する boundaryは除く
-  boundary.reverse() //boundaryも合わせる
-
-  //Rule1
-  //(loop >= 2)
-  _eventsArray.forEach((e, index) => { //TODO どこまで走査するか？
-    //boundaryを見つける(loop >= 2)
-    if(_eventsArray[index+3] === undefined){
-      return
-    }
-    if(compareEvent(_eventsArray[index], boundary[0]) &&
-       compareEvent(_eventsArray[index+1], boundary[1]) &&
-       compareEvent(_eventsArray[index+2], boundary[2]) &&
-       compareEvent(_eventsArray[index+3], boundary[3])) {
-      let loop = boundary.concat(_eventsArray.slice(0, index)) //boundaryのみの場合もある
-      console.log(loop)
-      loop = loop.reverse()
-      loop.push(loop.shift()) //先頭のTimeを末尾に
-      timeoutSend(loop, true)
-      return
-    }
-  })
-  //(loop = 1)
-  // timeoutSend(boundary)
-  return
+  const rep = findRep(_eventsArray, compareEvent)
+  timeoutSend(rep, true)
 }
 
 const compareEvent = function(origin, compare){
