@@ -9,8 +9,8 @@
 // 経過時間はイベントに含まれている
 // イベントが発生したとき、(直前のイベント.timeStamp - イベント.timeStamp)をappendする
 
-const inputSelector = document.getElementById('input_selector')
-const outputSelector = document.getElementById('output_selector')
+const inputEl = document.getElementById('inputdevice')
+const outputEl = document.getElementById('outputdevice')
 const events = document.getElementById('events');
 let inputs, outputs, inputId, outputDevice
 let eventsArray = []
@@ -18,21 +18,24 @@ let isStop = false
 
 const successCallback = function(access) {
   inputs = access.inputs
+  inputEl.innerHTML = "no supported devices"
   for(let input of inputs.values()) {
-    const optionEl = document.createElement('option')
-    optionEl.text = input.name
-    optionEl.value = input.id
-    inputSelector.add(optionEl)
-    input.onmidimessage = handleMIDIMessage
+    if(input.name.indexOf("KEYBOARD") > 0){
+      inputId = input.id
+      input.onmidimessage = handleMIDIMessage
+      inputEl.innerHTML = input.name
+      console.log(input.name)
+    }
   }
 
   outputs = access.outputs
+  outputEl.innerHTML = "no supported devices"
   for(let output of outputs.values()) {
-    const optionEl = document.createElement('option')
-    optionEl.text = output.name
-    optionEl.value = output.id
-    outputSelector.add(optionEl)
-    outputDevice = output
+    if(output.name.indexOf("KEY") < 0){
+      outputDevice = output
+      outputEl.innerHTML = output.name
+      return
+    }
   }
 }
 const errorCallback = function(msg) {
@@ -61,24 +64,6 @@ const handleMIDIMessage = function(e){
   event.innerHTML = text
   events.prepend(event)
   eventsArray.push(e)
-}
-
-const onChangeInputDevice = function(obj) {
-  inputId = obj.options[obj.selectedIndex].value
-  for(let input of inputs.values()) {
-    if(input.id == inputId){
-      input.onmidimessage = handleMIDIMessage
-    }
-  }
-}
-
-const onChangeOutputDevice = function(obj) {
-  const id = obj.options[obj.selectedIndex].value
-  for(let output of outputs.values()) {
-    if(output.id == id){
-      outputDevice = output
-    }
-  }
 }
 
 const send = function(array){
