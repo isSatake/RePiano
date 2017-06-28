@@ -1,6 +1,8 @@
+const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const inputEl = document.getElementById('inputdevice')
 const outputEl = document.getElementById('outputdevice')
 const events = document.getElementById('events');
+const piano = Synth.createInstrument('piano')
 let inputs, outputs, inputId, outputDevice
 let eventsArray = []
 let isStop = false
@@ -43,6 +45,8 @@ const handleMIDIMessage = function(e){
     eventsArray.push({time: deltaTime})
   }catch(err){}
 
+  playInternal(e.data)
+
   const isNoteOn = e.data[0].toString(16) == 90 ? true : false
   const note = e.data[1]
   const velocity = e.data[2]
@@ -54,7 +58,19 @@ const handleMIDIMessage = function(e){
   eventsArray.push(e)
 }
 
+const playInternal = function(array){
+  const isNoteOn = array[0].toString(16) == 90 ? true : false
+  const note = array[1]
+  const velocity = array[2]
+  const noteName = NOTES[note % 12]
+  const octave = (note / 12) - 1
+  if(isNoteOn){
+    piano.play(noteName, octave, 2)
+  }
+}
+
 const send = function(array){
+  playInternal(array)
   outputDevice.send(array)
 }
 
