@@ -35,12 +35,16 @@ const errorCallback = function(msg) {
 }
 
 const handleMIDIMessage = function(e){
-  const currentTime = audioContext.currentTime
   if(e.target.id != inputId){
     return
   }
+  recordEvent(e)
+  send(e)
+}
 
-  try {
+const recordEvent = function(e){
+  if(eventsArray.length > 0){
+    const currentTime = audioContext.currentTime
     const deltaTime = e.timeStamp - eventsArray[eventsArray.length - 1].timeStamp
     const time = document.createElement('div')
     time.innerHTML = deltaTime
@@ -50,9 +54,7 @@ const handleMIDIMessage = function(e){
     if(deltaTime >= 3000){
       markRewind(eventsArray.length)
     }
-  }catch(err){}
-
-  playInternal(e.data)
+  }
 
   const isNoteOn = e.data[0].toString(16) == 90 ? true : false
   const note = e.data[1]
@@ -67,9 +69,10 @@ const handleMIDIMessage = function(e){
 }
 
 const playInternal = function(array){
-  const isNoteOn = array[0].toString(16) == 90 ? true : false
-  const note = array[1]
-  const velocity = array[2]
+  const data = array.data
+  const isNoteOn = data[0].toString(16) == 90 ? true : false
+  const note = data[1]
+  const velocity = data[2]
   const noteName = NOTES[note % 12]
   const octave = (note / 12) - 1
   if(isNoteOn){
@@ -95,14 +98,17 @@ const timeoutSend = function(array, isInfinity = true){
     if(array.length == index && isInfinity == true){
       index = 0
     }
+    if(array[index] == undefined){
+      return
+    }
     const e = array[index]
     if(e.data){
-      send(e.data)
+      recordEvent(e)
+      send(e)
       index++
       co()
     }
     if(e.time){
-      console.log(e.time)
       setTimeout(function(){
         index++
         co()
@@ -113,6 +119,7 @@ const timeoutSend = function(array, isInfinity = true){
 
 const clearEvents = function(){
   eventsArray = []
+  rewindMarkersArray = [0]
   document.getElementById('events').innerHTML = ''
 }
 
@@ -140,7 +147,7 @@ const findRep = function(a, compare) {
 }
 
 const repeat = function(){
-  let _eventsArray = eventsArray.slice() //オリジナル
+  let _eventsArray = eventsArray.slice()
   const rep = findRep(_eventsArray, compareEvent)
   timeoutSend(rep, true)
 }
@@ -157,7 +164,6 @@ const rewind = function(times){
   const arr = _eventsArray.slice(rewindMarkersArray[0])
   timeoutSend(arr, false)
   markRewind(_eventsArray.length)
-  //TODO 再帰的に履歴を記録する
   //TODO rewindMarkersArray.length > 3 にならないようにしたい
 }
 
