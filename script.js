@@ -3,6 +3,7 @@ const inputEl = document.getElementById('inputdevice')
 const outputEl = document.getElementById('outputdevice')
 const events = document.getElementById('events');
 const piano = Synth.createInstrument('piano')
+const audioCtx = new AudioContext()
 let inputs, outputs, inputId, outputDevice
 let eventsArray = []
 let isStop = false
@@ -33,6 +34,7 @@ const errorCallback = function(msg) {
 }
 
 const handleMIDIMessage = function(e){
+  const currentTime = audioCtx.currentTime
   if(e.target.id != inputId){
     return
   }
@@ -42,7 +44,7 @@ const handleMIDIMessage = function(e){
     const time = document.createElement('div')
     time.innerHTML = deltaTime
     events.prepend(time)
-    eventsArray.push({time: deltaTime})
+    eventsArray.push({time: deltaTime, timeStamp: currentTime})
   }catch(err){}
 
   playInternal(e.data)
@@ -56,6 +58,7 @@ const handleMIDIMessage = function(e){
   event.innerHTML = text
   events.prepend(event)
   eventsArray.push(e)
+  //MIDIMessage.timeStampとAudioContext.currentTimeは時間単位以外同じ
 }
 
 const playInternal = function(array){
@@ -92,6 +95,7 @@ const timeoutSend = function(array, isInfinity = true){
       co()
     }
     if(e.time){
+      console.log(e.time)
       setTimeout(function(){
         index++
         co()
@@ -132,6 +136,34 @@ const repeat = function(){
   let _eventsArray = eventsArray.slice() //オリジナル
   const rep = findRep(_eventsArray, compareEvent)
   timeoutSend(rep, true)
+}
+
+const prev = function(){
+  //最後の操作から5秒以内の履歴を切り出して再生
+  const _eventsArray = eventsArray.slice()
+  const eaLast = _eventsArray.length - 1
+  const lastTimeStamp = _eventsArray[eaLast].timeStamp / 1000 //MIDIMessageのtimeStampはミリ秒
+  if(audioCtx.currentTime < 5){
+    timeoutSend(_eventsArray, false)
+    return
+  }
+  for(let i = eaLast; i > -1; i--){
+    if((lastTimeStamp - _eventsArray[i].timeStamp) > 5){
+      console.log((i+1) +" " + eaLast)
+      const p = _eventsArray.slice(i + 2, eaLast)
+      //冒頭のtimeを消す
+      console.log(p)
+      if(p[0].time){
+        p.shift()
+      }
+      console.log(p)
+      timeoutSend(p, false)
+      return
+      //TODO 頭からすぐに再生されない？変な間がある->冒頭のtimeを消す
+      //TODO prevで再生したものも再帰的にeventsArrayに入れたい?
+      //TODO
+    }
+  }
 }
 
 const compareEvent = function(origin, compare){
@@ -185,11 +217,18 @@ const onClickStop = function(){
   stopRepeat()
 }
 
+const onClickPrev = function(){
+  prev()
+}
+
 $(function(){
   navigator.requestMIDIAccess().then(successCallback, errorCallback)
 
   $(window).keydown(function(e){
     switch(e.keyCode){
+      case 37:
+        onClickPrev()
+        break;
       case 80:
         onClickPlay()
         break;
