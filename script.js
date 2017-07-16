@@ -38,20 +38,22 @@ const handleMIDIMessage = function(e){
   if(e.target.id != inputId){
     return
   }
-  recordEvent(e)
+  recordEvent(e, false)
   send(e)
 }
 
-const recordEvent = function(e){
+const recordEvent = function(e, isRecall){
+  e.rTimeStamp = audioContext.currentTime * 1000
+
   if(eventsArray.length > 0){
     const currentTime = audioContext.currentTime
-    const deltaTime = e.timeStamp - eventsArray[eventsArray.length - 1].timeStamp
+    const deltaTime = e.rTimeStamp - eventsArray[eventsArray.length - 1].rTimeStamp
     const time = document.createElement('div')
-    time.innerHTML = deltaTime
+    time.innerHTML = eventsArray.length + ': ' + deltaTime
     eventsHtml.prepend(time)
     eventsArray.push({time: deltaTime, timeStamp: currentTime})
 
-    if(deltaTime >= 3000){
+    if(!isRecall && deltaTime >= 3000){ //直接弾いているときだけ
       markRewind(eventsArray.length)
     }
   }
@@ -62,7 +64,7 @@ const recordEvent = function(e){
   const event = document.createElement('div')
   let text = isNoteOn ? "note on, " : "note off, "
   text += `note: ${note}, vel: ${velocity}`
-  event.innerHTML = text
+  event.innerHTML = eventsArray.length + ': ' + text
   eventsHtml.prepend(event)
   eventsArray.push(e)
   //MIDIMessage.timeStampとAudioContext.currentTimeは時間単位以外同じ
@@ -103,7 +105,7 @@ const timeoutSend = function(array, isInfinity = true){
     }
     const e = array[index]
     if(e.data){
-      recordEvent(e)
+      recordEvent(e, true)
       send(e)
       index++
       co()
@@ -161,9 +163,11 @@ const markRewind = function(position){
 
 const rewind = function(times){
   let _eventsArray = eventsArray.slice()
+  console.log(rewindMarkersArray[0])
   const arr = _eventsArray.slice(rewindMarkersArray[0])
+  console.log(arr)
+  markRewind(_eventsArray.length + 1) //3秒おきのマーカーとカブる…
   timeoutSend(arr, false)
-  markRewind(_eventsArray.length)
   //TODO rewindMarkersArray.length > 3 にならないようにしたい
 }
 
