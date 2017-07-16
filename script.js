@@ -1,11 +1,12 @@
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const inputEl = document.getElementById('inputdevice')
 const outputEl = document.getElementById('outputdevice')
-const events = document.getElementById('events');
+const eventsHtml = document.getElementById('events');
 const piano = Synth.createInstrument('piano')
-const audioCtx = new AudioContext()
+const audioContext = new AudioContext()
 let inputs, outputs, inputId, outputDevice
 let eventsArray = []
+let rewindMarkersArray = [0] //最初はeventsArrayの先頭に設定
 let isStop = false
 
 const successCallback = function(access) {
@@ -34,7 +35,7 @@ const errorCallback = function(msg) {
 }
 
 const handleMIDIMessage = function(e){
-  const currentTime = audioCtx.currentTime
+  const currentTime = audioContext.currentTime
   if(e.target.id != inputId){
     return
   }
@@ -43,8 +44,12 @@ const handleMIDIMessage = function(e){
     const deltaTime = e.timeStamp - eventsArray[eventsArray.length - 1].timeStamp
     const time = document.createElement('div')
     time.innerHTML = deltaTime
-    events.prepend(time)
+    eventsHtml.prepend(time)
     eventsArray.push({time: deltaTime, timeStamp: currentTime})
+
+    if(deltaTime >= 3000){
+      markRewind(eventsArray.length)
+    }
   }catch(err){}
 
   playInternal(e.data)
@@ -56,7 +61,7 @@ const handleMIDIMessage = function(e){
   let text = isNoteOn ? "note on, " : "note off, "
   text += `note: ${note}, vel: ${velocity}`
   event.innerHTML = text
-  events.prepend(event)
+  eventsHtml.prepend(event)
   eventsArray.push(e)
   //MIDIMessage.timeStampとAudioContext.currentTimeは時間単位以外同じ
 }
@@ -74,7 +79,9 @@ const playInternal = function(array){
 
 const send = function(array){
   playInternal(array)
-  outputDevice.send(array)
+  if(outputDevice != undefined){
+    outputDevice.send(array)
+  }
 }
 
 const timeoutSend = function(array, isInfinity = true){
@@ -138,32 +145,20 @@ const repeat = function(){
   timeoutSend(rep, true)
 }
 
-const prev = function(){
-  //最後の操作から5秒以内の履歴を切り出して再生
-  const _eventsArray = eventsArray.slice()
-  const eaLast = _eventsArray.length - 1
-  const lastTimeStamp = _eventsArray[eaLast].timeStamp / 1000 //MIDIMessageのtimeStampはミリ秒
-  if(audioCtx.currentTime < 5){
-    timeoutSend(_eventsArray, false)
-    return
-  }
-  for(let i = eaLast; i > -1; i--){
-    if((lastTimeStamp - _eventsArray[i].timeStamp) > 5){
-      console.log((i+1) +" " + eaLast)
-      const p = _eventsArray.slice(i + 2, eaLast)
-      //冒頭のtimeを消す
-      console.log(p)
-      if(p[0].time){
-        p.shift()
-      }
-      console.log(p)
-      timeoutSend(p, false)
-      return
-      //TODO 頭からすぐに再生されない？変な間がある->冒頭のtimeを消す
-      //TODO prevで再生したものも再帰的にeventsArrayに入れたい?
-      //TODO
-    }
-  }
+const markRewind = function(position){
+  rewindMarkersArray[0] = position
+  const rew = document.createElement('div')
+  rew.innerHTML = `====== REWIND MARKER ${position} ======`
+  eventsHtml.prepend(rew)
+}
+
+const rewind = function(times){
+  let _eventsArray = eventsArray.slice()
+  const arr = _eventsArray.slice(rewindMarkersArray[0])
+  timeoutSend(arr, false)
+  markRewind(_eventsArray.length)
+  //TODO 再帰的に履歴を記録する
+  //TODO rewindMarkersArray.length > 3 にならないようにしたい
 }
 
 const compareEvent = function(origin, compare){
@@ -217,8 +212,16 @@ const onClickStop = function(){
   stopRepeat()
 }
 
-const onClickPrev = function(){
-  prev()
+const onClickRewind1 = function(){
+  rewind(1)
+}
+
+const onClickRewind2 = function(){
+  rewind(2)
+}
+
+const onClickRewind3 = function(){
+  rewind(3)
 }
 
 $(function(){
@@ -240,6 +243,15 @@ $(function(){
         break;
       case 83:
         onClickStop()
+        break;
+      case 49:
+        onClickRewind1()
+        break;
+      case 50:
+        onClickRewind2()
+        break;
+      case 51:
+        onClickRewind3()
         break;
       default:
         break;
