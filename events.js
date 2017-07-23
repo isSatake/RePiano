@@ -1,29 +1,13 @@
-const onClickPlay = function() {
-  timeoutSend(eventsArray, false)
+const onClickRecPlay = function() {
+  recAndPlay()
 }
 
 const onClickClear = function(){
-  clearEvents()
+  clear()
 }
 
-const onClickRepeat = function(){
-  repeat()
-}
-
-const onClickStop = function(){
-  stopRepeat()
-}
-
-const onClickRewind1 = function(){
-  rewind(1)
-}
-
-const onClickRewind2 = function(){
-  rewind(2)
-}
-
-const onClickRewind3 = function(){
-  rewind(3)
+const onClickUndo = function(){
+  undo()
 }
 
 $(function(){
@@ -31,29 +15,14 @@ $(function(){
 
   $(window).keydown(function(e){
     switch(e.keyCode){
-      case 37:
-        onClickPrev()
-        break;
       case 80:
-        onClickPlay()
+        onClickRecPlay()
         break;
       case 67:
         onClickClear()
         break;
       case 82:
-        onClickRepeat()
-        break;
-      case 83:
-        onClickStop()
-        break;
-      case 49:
-        onClickRewind1()
-        break;
-      case 50:
-        onClickRewind2()
-        break;
-      case 51:
-        onClickRewind3()
+        onClickUndo()
         break;
       default:
         break;

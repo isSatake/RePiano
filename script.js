@@ -10,10 +10,41 @@ let isStop = false
 function Looper(id, events) {
   this.id = id
   this.array = events
+  this.isStop = false
+  this.start()
+}
+
+Looper.prototype.start = function(){
+  const obj = this
+  let index = 0
+  co()
+  function co(){
+    if(obj.isStop == true){
+      return
+    }
+    if(obj.array.length == index){
+      index = 0
+    }
+    if(obj.array[index] == undefined){
+      return
+    }
+    const e = obj.array[index]
+    if(e.data){
+      send(e)
+      index++
+      co()
+    }
+    if(e.time){
+      setTimeout(function(){
+        index++
+        co()
+      }, e.time)
+    }
+  }
 }
 
 Looper.prototype.stop = function(){
-
+  this.isStop = true
 }
 
 const player = {
@@ -21,31 +52,36 @@ const player = {
   loops: [],
   startLoop: function(events){
     //ループ再生クラスを初期化してloopIdを振っていく
-    loopId += 1
-    loops.push(new Looper(loopId, events))
-    return loopId
+    this.loopId += 1
+    this.loops.push(new Looper(this.loopId, events))
+    return this.loopId
   },
-  play: function(){
-    //無音区間は一定じゃないからコルーチンじゃないと無理か
-    //player独自のIDで管理する
-  },
-  stop: function(id){
+  stopLoop: function(id){
     //idを持つループ再生クラスを削除
-    loops[id].stop()
-    loops[id] = undefined
+    this.loops[id].stop()
+    this.loops[id] = undefined
   }
 }
 
 const loopStack = {
   stack: [],
   push: function(events){
-    const dynamicmacro = findRep(events) //検出できなければnullを返す
-    this.stack.push(player.startLoop(dynamicmacro ? dynamicmacro : events))
+    // const dynamicmacro = findRep(events) //検出できなければnullを返す
+    const dynamicmacro = null
     //eventsをループ再生
+    if(events.length < 1){
+      return
+    }
+    this.stack.push(player.startLoop(dynamicmacro ? dynamicmacro : events))
   },
   pop: function(){
-    player.stop(this.stack.pop()) //こういうことがしたい
-    //popしたeventsのループを停止
+    player.stopLoop(this.stack.pop())
+  },
+  clear: function(){
+    this.stack.forEach(function(id, index, array){
+      player.stopLoop(id)
+    })
+    this.stack = []
   }
 }
 
@@ -53,7 +89,6 @@ const events = {
   array: [],
   push: function(events){
     this.array.push(events)
-    //無音区間以前のイベントを消す
   },
   record: function(e){
     e.rTimeStamp = audioContext.currentTime * 1000
@@ -61,10 +96,14 @@ const events = {
     if(this.getLength() > 0){
       const currentTime = audioContext.currentTime
       const deltaTime = e.rTimeStamp - this.array[this.getLength() - 1].rTimeStamp
-      const time = document.createElement('div')
-      time.innerHTML = this.getLength() + ': ' + deltaTime
-      eventsHtml.prepend(time)
-      this.push({time: deltaTime, timeStamp: currentTime})
+      if(deltaTime >= 2000){
+        this.clear()
+      }else{
+        const time = document.createElement('div')
+        time.innerHTML = this.getLength() + ': ' + deltaTime
+        eventsHtml.prepend(time)
+        this.push({time: deltaTime, timeStamp: currentTime})
+      }
     }
 
     const isNoteOn = e.data[0].toString(16) == 90 ? true : false
@@ -86,12 +125,29 @@ const events = {
   },
   recAndPlay: function(){
     //loopStack操作
+    const currentTime = audioContext.currentTime * 1000
+    const deltaTime = currentTime - this.array[this.getLength() - 1].rTimeStamp
+    this.push({time: deltaTime, timeStamp: currentTime / 1000})
+    loopStack.push(this.array)
     this.clear()
   },
   clear: function(){
     this.array = []
     document.getElementById('events').innerHTML = ''
   }
+}
+
+const recAndPlay = function(){
+  events.recAndPlay()
+}
+
+const clear = function(){
+  events.clear()
+  loopStack.clear()
+}
+
+const undo = function(){
+  loopStack.pop()
 }
 
 
@@ -150,36 +206,6 @@ const send = function(array){
   playInternal(array)
   if(outputDevice != undefined){
     outputDevice.send(array)
-  }
-}
-
-const timeoutSend = function(array, isInfinity = true){
-  let index = 0
-  co()
-  function co(){
-    if(isStop == true){
-      isStop = false
-      return
-    }
-    if(array.length == index && isInfinity == true){
-      index = 0
-    }
-    if(array[index] == undefined){
-      return
-    }
-    const e = array[index]
-    if(e.data){
-      recordEvent(e, true)
-      send(e)
-      index++
-      co()
-    }
-    if(e.time){
-      setTimeout(function(){
-        index++
-        co()
-      }, e.time)
-    }
   }
 }
 
@@ -249,16 +275,3 @@ const repeat = function(){
   const rep = findRep(_eventsArray, compareEvent)
   timeoutSend(rep, true)
 }
-
-
-/* rewind */
-
-// const rewind = function(times){
-//   let _eventsArray = events.copy()
-//   console.log(rewindMarkersArray[0])
-//   const arr = _eventsArray.slice(rewindMarkersArray[0])
-//   console.log(arr)
-//   markRewind(_eventsArray.length + 1) //3秒おきのマーカーとカブる…
-//   timeoutSend(arr, false)
-//   //TODO rewindMarkersArray.length > 3 にならないようにしたい
-// }
