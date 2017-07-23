@@ -5,9 +5,97 @@ const eventsHtml = document.getElementById('events');
 const piano = Synth.createInstrument('piano')
 const audioContext = new AudioContext()
 let inputs, outputs, inputId, outputDevice
-let eventsArray = []
-let rewindMarkersArray = [0] //最初はeventsArrayの先頭に設定
 let isStop = false
+
+function Looper(id, events) {
+  this.id = id
+  this.array = events
+}
+
+Looper.prototype.stop = function(){
+
+}
+
+const player = {
+  loopId: -1,
+  loops: [],
+  startLoop: function(events){
+    //ループ再生クラスを初期化してloopIdを振っていく
+    loopId += 1
+    loops.push(new Looper(loopId, events))
+    return loopId
+  },
+  play: function(){
+    //無音区間は一定じゃないからコルーチンじゃないと無理か
+    //player独自のIDで管理する
+  },
+  stop: function(id){
+    //idを持つループ再生クラスを削除
+    loops[id].stop()
+    loops[id] = undefined
+  }
+}
+
+const loopStack = {
+  stack: [],
+  push: function(events){
+    const dynamicmacro = findRep(events) //検出できなければnullを返す
+    this.stack.push(player.startLoop(dynamicmacro ? dynamicmacro : events))
+    //eventsをループ再生
+  },
+  pop: function(){
+    player.stop(this.stack.pop()) //こういうことがしたい
+    //popしたeventsのループを停止
+  }
+}
+
+const events = {
+  array: [],
+  push: function(events){
+    this.array.push(events)
+    //無音区間以前のイベントを消す
+  },
+  record: function(e){
+    e.rTimeStamp = audioContext.currentTime * 1000
+
+    if(this.getLength() > 0){
+      const currentTime = audioContext.currentTime
+      const deltaTime = e.rTimeStamp - this.array[this.getLength() - 1].rTimeStamp
+      const time = document.createElement('div')
+      time.innerHTML = this.getLength() + ': ' + deltaTime
+      eventsHtml.prepend(time)
+      this.push({time: deltaTime, timeStamp: currentTime})
+    }
+
+    const isNoteOn = e.data[0].toString(16) == 90 ? true : false
+    const note = e.data[1]
+    const velocity = e.data[2]
+    const event = document.createElement('div')
+    let text = isNoteOn ? "note on, " : "note off, "
+    text += `note: ${note}, vel: ${velocity}`
+    event.innerHTML = this.getLength() + ': ' + text
+    eventsHtml.prepend(event)
+    this.push(e)
+    //MIDIMessage.timeStampとAudioContext.currentTimeは時間単位以外同じ
+  },
+  copy: function(){
+    return this.array.slice()
+  },
+  getLength: function(){
+    return this.array.length
+  },
+  recAndPlay: function(){
+    //loopStack操作
+    this.clear()
+  },
+  clear: function(){
+    this.array = []
+    document.getElementById('events').innerHTML = ''
+  }
+}
+
+
+/* MIDI */
 
 const successCallback = function(access) {
   inputs = access.inputs
@@ -30,6 +118,7 @@ const successCallback = function(access) {
     }
   }
 }
+
 const errorCallback = function(msg) {
   console.log("[ERROR] ", msg);
 }
@@ -38,37 +127,12 @@ const handleMIDIMessage = function(e){
   if(e.target.id != inputId){
     return
   }
-  recordEvent(e, false)
+  events.record(e, false)
   send(e)
 }
 
-const recordEvent = function(e, isRecall){
-  e.rTimeStamp = audioContext.currentTime * 1000
 
-  if(eventsArray.length > 0){
-    const currentTime = audioContext.currentTime
-    const deltaTime = e.rTimeStamp - eventsArray[eventsArray.length - 1].rTimeStamp
-    const time = document.createElement('div')
-    time.innerHTML = eventsArray.length + ': ' + deltaTime
-    eventsHtml.prepend(time)
-    eventsArray.push({time: deltaTime, timeStamp: currentTime})
-
-    if(!isRecall && deltaTime >= 3000){ //直接弾いているときだけ
-      markRewind(eventsArray.length)
-    }
-  }
-
-  const isNoteOn = e.data[0].toString(16) == 90 ? true : false
-  const note = e.data[1]
-  const velocity = e.data[2]
-  const event = document.createElement('div')
-  let text = isNoteOn ? "note on, " : "note off, "
-  text += `note: ${note}, vel: ${velocity}`
-  event.innerHTML = eventsArray.length + ': ' + text
-  eventsHtml.prepend(event)
-  eventsArray.push(e)
-  //MIDIMessage.timeStampとAudioContext.currentTimeは時間単位以外同じ
-}
+/* Playing */
 
 const playInternal = function(array){
   const data = array.data
@@ -119,10 +183,42 @@ const timeoutSend = function(array, isInfinity = true){
   }
 }
 
-const clearEvents = function(){
-  eventsArray = []
-  rewindMarkersArray = [0]
-  document.getElementById('events').innerHTML = ''
+
+/*  Dynamic Macro */
+
+const isSameTime = function(originTime, compareTime){
+  return Math.abs(originTime - compareTime) < 50
+}
+
+const isSameData = function(originData, compareData){
+  //TODO TimeClass, DataClassを作りたい
+  return (originData[0] == compareData[0] &&
+          originData[1] == compareData[1]
+          //Math.abs(originData[2] - compareData[2]) < 40
+        )
+}
+
+const compareEvent = function(origin, compare){
+  // timeか、dataか
+  const isTimeOrigin = origin.hasOwnProperty('time')
+  const isTimeCompare = compare.hasOwnProperty('time')
+  if(isTimeOrigin && isTimeCompare){
+    // timeは近いか
+    if(isSameTime(origin.time, compare.time)){
+      return true
+    }
+  }
+  if(!isTimeOrigin && !isTimeCompare){
+    // on/off, noteは同じか
+    if(isSameData(origin.data, compare.data)){
+      return true
+    }
+  }
+  return false
+}
+
+const stopRepeat = function() {
+  isStop = true
 }
 
 const findRep = function(a, compare) {
@@ -149,122 +245,20 @@ const findRep = function(a, compare) {
 }
 
 const repeat = function(){
-  let _eventsArray = eventsArray.slice()
+  let _eventsArray = events.copy()
   const rep = findRep(_eventsArray, compareEvent)
   timeoutSend(rep, true)
 }
 
-const markRewind = function(position){
-  rewindMarkersArray[0] = position
-  const rew = document.createElement('div')
-  rew.innerHTML = `====== REWIND MARKER ${position} ======`
-  eventsHtml.prepend(rew)
-}
 
-const rewind = function(times){
-  let _eventsArray = eventsArray.slice()
-  console.log(rewindMarkersArray[0])
-  const arr = _eventsArray.slice(rewindMarkersArray[0])
-  console.log(arr)
-  markRewind(_eventsArray.length + 1) //3秒おきのマーカーとカブる…
-  timeoutSend(arr, false)
-  //TODO rewindMarkersArray.length > 3 にならないようにしたい
-}
+/* rewind */
 
-const compareEvent = function(origin, compare){
-  // timeか、dataか
-  const isTimeOrigin = origin.hasOwnProperty('time')
-  const isTimeCompare = compare.hasOwnProperty('time')
-  if(isTimeOrigin && isTimeCompare){
-    // timeは近いか
-    if(isSameTime(origin.time, compare.time)){
-      return true
-    }
-  }
-  if(!isTimeOrigin && !isTimeCompare){
-    // on/off, noteは同じか
-    if(isSameData(origin.data, compare.data)){
-      return true
-    }
-  }
-  return false
-}
-
-const isSameTime = function(originTime, compareTime){
-  return Math.abs(originTime - compareTime) < 50
-}
-
-const isSameData = function(originData, compareData){
-  //TODO TimeClass, DataClassを作りたい
-  return (originData[0] == compareData[0] &&
-          originData[1] == compareData[1]
-          //Math.abs(originData[2] - compareData[2]) < 40
-        )
-}
-
-const stopRepeat = function() {
-  isStop = true
-}
-
-const onClickPlay = function() {
-  timeoutSend(eventsArray, false)
-}
-
-const onClickClear = function(){
-  clearEvents()
-}
-
-const onClickRepeat = function(){
-  repeat()
-}
-
-const onClickStop = function(){
-  stopRepeat()
-}
-
-const onClickRewind1 = function(){
-  rewind(1)
-}
-
-const onClickRewind2 = function(){
-  rewind(2)
-}
-
-const onClickRewind3 = function(){
-  rewind(3)
-}
-
-$(function(){
-  navigator.requestMIDIAccess().then(successCallback, errorCallback)
-
-  $(window).keydown(function(e){
-    switch(e.keyCode){
-      case 37:
-        onClickPrev()
-        break;
-      case 80:
-        onClickPlay()
-        break;
-      case 67:
-        onClickClear()
-        break;
-      case 82:
-        onClickRepeat()
-        break;
-      case 83:
-        onClickStop()
-        break;
-      case 49:
-        onClickRewind1()
-        break;
-      case 50:
-        onClickRewind2()
-        break;
-      case 51:
-        onClickRewind3()
-        break;
-      default:
-        break;
-    }
-  })
-})
+// const rewind = function(times){
+//   let _eventsArray = events.copy()
+//   console.log(rewindMarkersArray[0])
+//   const arr = _eventsArray.slice(rewindMarkersArray[0])
+//   console.log(arr)
+//   markRewind(_eventsArray.length + 1) //3秒おきのマーカーとカブる…
+//   timeoutSend(arr, false)
+//   //TODO rewindMarkersArray.length > 3 にならないようにしたい
+// }
