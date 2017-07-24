@@ -21,7 +21,7 @@ $(function(){
       case 67:
         onClickClear()
         break;
-      case 82:
+      case 85:
         onClickUndo()
         break;
       default:

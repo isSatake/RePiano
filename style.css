@@ -1,0 +1,20 @@
+#controls {
+  margin: 10px 0 20px 0;
+}
+
+#events {
+  width: 290px;
+  height: 10px;
+  float: left;
+  padding: 10px 10px 100% 10px;
+  background-color: #EEE;
+  margin-right: 10px;
+}
+
+#loops {
+  width: 290px;
+  height: 10px;
+  float: left;
+  padding: 10px 10px 100% 10px;
+  background-color: #EEE;
+}

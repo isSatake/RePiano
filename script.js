@@ -1,7 +1,8 @@
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const inputEl = document.getElementById('inputdevice')
 const outputEl = document.getElementById('outputdevice')
-const eventsHtml = document.getElementById('events');
+const eventsHtml = document.getElementById('events')
+const loopsHtml = document.getElementById('loops')
 const piano = Synth.createInstrument('piano')
 const audioContext = new AudioContext()
 let inputs, outputs, inputId, outputDevice
@@ -34,7 +35,7 @@ Looper.prototype.start = function(){
       index++
       co()
     }
-    if(e.time){
+    if(e.time != undefined){
       setTimeout(function(){
         index++
         co()
@@ -68,20 +69,32 @@ const loopStack = {
   push: function(events){
     // const dynamicmacro = findRep(events) //検出できなければnullを返す
     const dynamicmacro = null
-    //eventsをループ再生
-    if(events.length < 1){
+    const length = events.length
+    if(length < 1){
       return
     }
-    this.stack.push(player.startLoop(dynamicmacro ? dynamicmacro : events))
+    const loopId = player.startLoop(dynamicmacro ? dynamicmacro : events)
+    this.stack.push({id: loopId, length: length})
+    this.draw()
   },
   pop: function(){
-    player.stopLoop(this.stack.pop())
+    player.stopLoop(this.stack.pop().id)
+    this.draw()
   },
   clear: function(){
-    this.stack.forEach(function(id, index, array){
-      player.stopLoop(id)
+    this.stack.forEach(function(loop, index, array){
+      player.stopLoop(loop.id)
     })
     this.stack = []
+    this.draw()
+  },
+  draw: function(){
+    loopsHtml.innerHTML = ''
+    this.stack.forEach(function(loop, index, array){
+      const div = document.createElement('div')
+      div.innerHTML = `loop: ${loop.id} length: ${loop.length}`
+      loopsHtml.prepend(div)
+    })
   }
 }
 
@@ -100,18 +113,19 @@ const events = {
         this.clear()
       }else{
         const time = document.createElement('div')
-        time.innerHTML = this.getLength() + ': ' + deltaTime
+        time.innerHTML = this.getLength() + ': ' + Math.floor(deltaTime) + 'msec'
         eventsHtml.prepend(time)
         this.push({time: deltaTime, timeStamp: currentTime})
       }
     }
 
     const isNoteOn = e.data[0].toString(16) == 90 ? true : false
-    const note = e.data[1]
+    const note = NOTES[e.data[1] % 12]
+    const octave = Math.floor((e.data[1] / 12) - 1)
     const velocity = e.data[2]
     const event = document.createElement('div')
     let text = isNoteOn ? "note on, " : "note off, "
-    text += `note: ${note}, vel: ${velocity}`
+    text += `note: ${note}${octave}, vel: ${velocity}`
     event.innerHTML = this.getLength() + ': ' + text
     eventsHtml.prepend(event)
     this.push(e)
@@ -133,7 +147,7 @@ const events = {
   },
   clear: function(){
     this.array = []
-    document.getElementById('events').innerHTML = ''
+    eventsHtml.innerHTML = ' '
   }
 }
 
