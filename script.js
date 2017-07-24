@@ -67,14 +67,13 @@ const player = {
 const loopStack = {
   stack: [],
   push: function(events){
-    // const dynamicmacro = findRep(events) //検出できなければnullを返す
-    const dynamicmacro = null
     const length = events.length
     if(length < 1){
       return
     }
-    const loopId = player.startLoop(dynamicmacro ? dynamicmacro : events)
-    this.stack.push({id: loopId, length: length})
+    const dynamicmacro = findRep(events, compareEvent)
+    const loopId = player.startLoop(dynamicmacro.length > 0 ? dynamicmacro : events)
+    this.stack.push({id: loopId, length: length, dynamicmacro: dynamicmacro.length > 0})
     this.draw()
   },
   pop: function(){
@@ -92,7 +91,7 @@ const loopStack = {
     loopsHtml.innerHTML = ''
     this.stack.forEach(function(loop, index, array){
       const div = document.createElement('div')
-      div.innerHTML = `loop: ${loop.id} length: ${loop.length}`
+      div.innerHTML = `loop: ${loop.id} length: ${loop.length} ${loop.dynamicmacro ? 'dynamicmacro' : ''}`
       loopsHtml.prepend(div)
     })
   }
@@ -141,7 +140,7 @@ const events = {
     //loopStack操作
     const currentTime = audioContext.currentTime * 1000
     const deltaTime = currentTime - this.array[this.getLength() - 1].rTimeStamp
-    this.push({time: deltaTime, timeStamp: currentTime / 1000})
+    // this.push({time: deltaTime, timeStamp: currentTime / 1000})
     loopStack.push(this.array)
     this.clear()
   },
@@ -242,7 +241,7 @@ const compareEvent = function(origin, compare){
   // timeか、dataか
   const isTimeOrigin = origin.hasOwnProperty('time')
   const isTimeCompare = compare.hasOwnProperty('time')
-  if(isTimeOrigin && isTimeCompare){
+  if(isTimeOrigin != undefined && isTimeCompare != undefined){
     // timeは近いか
     if(isSameTime(origin.time, compare.time)){
       return true
@@ -278,7 +277,6 @@ const findRep = function(a, compare) {
       ) {
       continue
     }
-    console.log(k)
     res = a.slice(len - 3 - k, len - 1)
   }
   return res
