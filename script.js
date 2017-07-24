@@ -6,7 +6,9 @@ const loopsHtml = document.getElementById('loops')
 const piano = Synth.createInstrument('piano')
 const audioContext = new AudioContext()
 let inputs, outputs, inputId, outputDevice
-let isStop = false
+
+
+/* Looper Class */
 
 function Looper(id, events) {
   this.id = id
@@ -48,10 +50,14 @@ Looper.prototype.stop = function(){
   this.isStop = true
 }
 
+
+/* Looperの管理 */
+
 const player = {
   loopId: -1,
   loops: [],
   startLoop: function(events){
+    console.log(events)
     //ループ再生クラスを初期化してloopIdを振っていく
     this.loopId += 1
     this.loops.push(new Looper(this.loopId, events))
@@ -72,11 +78,19 @@ const loopStack = {
       return
     }
     const dynamicmacro = findRep(events, compareEvent)
+    if(dynamicmacro.length < 1){
+      const currentTime = audioContext.currentTime * 1000
+      const deltaTime = currentTime - events[length - 1].rTimeStamp
+      events.push({time: deltaTime, timeStamp: currentTime / 1000})
+    }
     const loopId = player.startLoop(dynamicmacro.length > 0 ? dynamicmacro : events)
     this.stack.push({id: loopId, length: length, dynamicmacro: dynamicmacro.length > 0})
     this.draw()
   },
   pop: function(){
+    if(this.stack.length < 1){
+      return
+    }
     player.stopLoop(this.stack.pop().id)
     this.draw()
   },
@@ -97,6 +111,9 @@ const loopStack = {
   }
 }
 
+
+/* MIDIイベントの処理　*/
+
 const events = {
   array: [],
   push: function(events){
@@ -107,9 +124,11 @@ const events = {
 
     if(this.getLength() > 0){
       const currentTime = audioContext.currentTime
-      const deltaTime = e.rTimeStamp - this.array[this.getLength() - 1].rTimeStamp
+      let deltaTime = e.rTimeStamp - this.array[this.getLength() - 1].rTimeStamp
       if(deltaTime >= 2000){
         this.clear()
+      }else if(deltaTime <= 15){
+        deltaTime = 0
       }else{
         const time = document.createElement('div')
         time.innerHTML = this.getLength() + ': ' + Math.floor(deltaTime) + 'msec'
@@ -138,9 +157,6 @@ const events = {
   },
   recAndPlay: function(){
     //loopStack操作
-    const currentTime = audioContext.currentTime * 1000
-    const deltaTime = currentTime - this.array[this.getLength() - 1].rTimeStamp
-    // this.push({time: deltaTime, timeStamp: currentTime / 1000})
     loopStack.push(this.array)
     this.clear()
   },
@@ -256,10 +272,6 @@ const compareEvent = function(origin, compare){
   return false
 }
 
-const stopRepeat = function() {
-  isStop = true
-}
-
 const findRep = function(a, compare) {
   if(compare === undefined){
     compare = (x, y) => { return x === y }
@@ -280,10 +292,4 @@ const findRep = function(a, compare) {
     res = a.slice(len - 3 - k, len - 1)
   }
   return res
-}
-
-const repeat = function(){
-  let _eventsArray = events.copy()
-  const rep = findRep(_eventsArray, compareEvent)
-  timeoutSend(rep, true)
 }

@@ -15,13 +15,13 @@ $(function(){
 
   $(window).keydown(function(e){
     switch(e.keyCode){
-      case 80:
+      case 80: //P
         onClickRecPlay()
         break;
-      case 67:
+      case 67: //C
         onClickClear()
         break;
-      case 85:
+      case 85: //U
         onClickUndo()
         break;
       default:
