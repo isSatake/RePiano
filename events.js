@@ -2,6 +2,10 @@ const onClickRecPlay = function() {
   recAndPlay()
 }
 
+const onClickDM = function() {
+  dynamicmacro()
+}
+
 const onClickClear = function(){
   clear()
 }
@@ -15,13 +19,16 @@ $(function(){
 
   $(window).keydown(function(e){
     switch(e.keyCode){
-      case 80: //P
+      case 49: //1
         onClickRecPlay()
         break;
-      case 67: //C
+      case 50: //2
+        onClickDM()
+        break;
+      case 51: //3
         onClickClear()
         break;
-      case 85: //U
+      case 52: //4
         onClickUndo()
         break;
       default:

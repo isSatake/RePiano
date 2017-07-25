@@ -72,12 +72,15 @@ const player = {
 
 const loopStack = {
   stack: [],
-  push: function(events){
+  push: function(events, isDynamicMacro){
     const length = events.length
     if(length < 1){
       return
     }
-    const dynamicmacro = findRep(events, compareEvent)
+    let dynamicmacro = []
+    if(isDynamicMacro == true){
+      dynamicmacro = findRep(events, compareEvent)
+    }
     if(dynamicmacro.length < 1){
       const currentTime = audioContext.currentTime * 1000
       const deltaTime = currentTime - events[length - 1].rTimeStamp
@@ -157,7 +160,11 @@ const events = {
   },
   recAndPlay: function(){
     //loopStack操作
-    loopStack.push(this.array)
+    loopStack.push(this.array, false)
+    this.clear()
+  },
+  dynamicmacro: function(){
+    loopStack.push(this.array, true)
     this.clear()
   },
   clear: function(){
@@ -168,6 +175,10 @@ const events = {
 
 const recAndPlay = function(){
   events.recAndPlay()
+}
+
+const dynamicmacro = function(){
+  events.dynamicmacro()
 }
 
 const clear = function(){
