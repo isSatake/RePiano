@@ -70,14 +70,25 @@ const player = {
   }
 }
 
+const getTime = function(array){
+  let time = 0
+  array.forEach(function(obj, index, arr){
+    if(obj.time != undefined){
+      time += obj.time
+    }
+  })
+  return time
+}
+
 const loopStack = {
   stack: [],
-  push: function(events, isDynamicMacro){
+  push: function(events, time, deltaTimes, isDynamicMacro){
     const length = events.length
     if(length < 1){
       return
     }
     let dynamicmacro = []
+    let loopId
     if(isDynamicMacro == true){
       dynamicmacro = findRep(events, compareEvent)
     }
@@ -85,9 +96,13 @@ const loopStack = {
       const currentTime = audioContext.currentTime * 1000
       const deltaTime = currentTime - events[length - 1].rTimeStamp
       events.push({time: deltaTime, timeStamp: currentTime / 1000})
+      loopId = player.startLoop(events)
+      this.stack.push({id: loopId, length: length, time: time, deltaTimes: deltaTimes, dynamicmacro: false})
+    }else{
+      loopId = player.startLoop(dynamicmacro)
+      this.stack.push({id: loopId, length: length, time: time, deltaTimes: deltaTimes, dynamicmacro: true})
     }
-    const loopId = player.startLoop(dynamicmacro.length > 0 ? dynamicmacro : events)
-    this.stack.push({id: loopId, length: length, dynamicmacro: dynamicmacro.length > 0})
+
     this.draw()
   },
   pop: function(){
@@ -96,6 +111,9 @@ const loopStack = {
     }
     player.stopLoop(this.stack.pop().id)
     this.draw()
+  },
+  getBaseTime: function(){
+    return this.stack[0] ? this.stack[0].time : 0
   },
   clear: function(){
     this.stack.forEach(function(loop, index, array){
@@ -108,7 +126,7 @@ const loopStack = {
     loopsHtml.innerHTML = ''
     this.stack.forEach(function(loop, index, array){
       const div = document.createElement('div')
-      div.innerHTML = `loop: ${loop.id} length: ${loop.length} ${loop.dynamicmacro ? 'dynamicmacro' : ''}`
+      div.innerHTML = `loop: ${loop.id} time: ${Math.floor(loop.time)} deltaTimes: ${loop.deltaTimes} ${loop.dynamicmacro ? 'dynamicmacro' : ''}`
       loopsHtml.prepend(div)
     })
   }
@@ -119,6 +137,8 @@ const loopStack = {
 
 const events = {
   array: [],
+  time: 0,
+  deltaTimes: 0,
   push: function(events){
     this.array.push(events)
   },
@@ -130,13 +150,13 @@ const events = {
       let deltaTime = e.rTimeStamp - this.array[this.getLength() - 1].rTimeStamp
       if(deltaTime >= 2000){
         this.clear()
-      }else if(deltaTime <= 15){
-        deltaTime = 0
-      }else{
+      }else if(deltaTime > 15){
         const time = document.createElement('div')
         time.innerHTML = this.getLength() + ': ' + Math.floor(deltaTime) + 'msec'
         eventsHtml.prepend(time)
         this.push({time: deltaTime, timeStamp: currentTime})
+        this.time += deltaTime
+        this.deltaTimes++
       }
     }
 
@@ -160,17 +180,52 @@ const events = {
   },
   recAndPlay: function(){
     //loopStack操作
-    loopStack.push(this.array, false)
+    //ここでクオンタイズしてもよし
+    if(loopStack.stack.length > 0){
+      this.quantize()
+    }
+    loopStack.push(this.array, this.time, this.deltaTimes, false)
     this.clear()
   },
   dynamicmacro: function(){
-    loopStack.push(this.array, true)
+    loopStack.push(this.array, this.time, this.deltaTimes, true)
     this.clear()
+  },
+  quantize: function(){
+    const baseTime = loopStack.getBaseTime()
+    const bigger = baseTime >= this.time ? baseTime : this.time
+    const smaller = baseTime <= this.time ? baseTime : this.time
+    const scale = Math.abs(baseTime / this.time)
+    if(isInteger(scale)){
+      return
+    }
+    const rScale = Math.round(scale)
+    const kakeru = (baseTime * rScale) / this.time
+    // const hiku = (Math.abs(loopTime - baseTime * rScale)) / loopDeltaTimes
+    console.log(baseTime + " " + this.time + " " + kakeru)
+    this.time = 0
+    const _this = this
+    this.array.forEach(function(obj, index, arr){
+      if(obj.time != undefined){
+        console.log(obj.time + " -> " + obj.time*kakeru)
+        const newTime = obj.time * kakeru
+        arr[index].time = newTime
+        // obj.time = obj.time * kakeru
+        _this.time += newTime
+      }
+    })
+    console.log(this.time + ", " + this.time / baseTime)
   },
   clear: function(){
     this.array = []
+    this.time = 0
+    this.deltaTimes = 0
     eventsHtml.innerHTML = ' '
   }
+}
+
+const isInteger = function(x){
+  return x % 1 === 0
 }
 
 const recAndPlay = function(){
