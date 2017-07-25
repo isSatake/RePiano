@@ -6,12 +6,12 @@ const onClickDM = function() {
   dynamicmacro()
 }
 
-const onClickClear = function(){
-  clear()
-}
-
 const onClickUndo = function(){
   undo()
+}
+
+const onClickClear = function(){
+  clear()
 }
 
 $(function(){
@@ -26,10 +26,10 @@ $(function(){
         onClickDM()
         break;
       case 51: //3
-        onClickClear()
+        onClickUndo()
         break;
       case 52: //4
-        onClickUndo()
+        onClickClear()
         break;
       default:
         break;
