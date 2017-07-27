@@ -22,15 +22,15 @@ $(function(){
       case 49: //1
         onClickRecPlay()
         break;
+      // case 50: //2
+      //   onClickDM()
+      //   break;
       case 50: //2
-        onClickDM()
-        break;
-      case 51: //3
         onClickUndo()
         break;
-      case 52: //4
-        onClickClear()
-        break;
+      // case 52: //4
+      //   onClickClear()
+      //   break;
       default:
         break;
     }

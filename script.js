@@ -78,9 +78,9 @@ const loopStack = {
       return
     }
     let dynamicmacro = []
-    if(isDynamicMacro == true){
+    // if(isDynamicMacro == true){
       dynamicmacro = findRep(events, compareEvent)
-    }
+    // }
     if(dynamicmacro.length < 1){
       const currentTime = audioContext.currentTime * 1000
       const deltaTime = currentTime - events[length - 1].rTimeStamp
@@ -268,7 +268,7 @@ const compareEvent = function(origin, compare){
   // timeか、dataか
   const isTimeOrigin = origin.hasOwnProperty('time')
   const isTimeCompare = compare.hasOwnProperty('time')
-  if(isTimeOrigin != undefined && isTimeCompare != undefined){
+   if(isTimeOrigin != undefined && isTimeCompare != undefined){
     // timeは近いか
     if(isSameTime(origin.time, compare.time)){
       return true
