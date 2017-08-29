@@ -7,26 +7,33 @@ const piano = Synth.createInstrument('piano')
 const audioContext = new AudioContext()
 let inputs, outputs, inputId, outputDevice
 
-
 /* Looper Class */
 
-function Looper(id, events) {
+function Looper(id, events, isBaseLoop) {
   this.id = id
   this.array = events
   this.isStop = false
+  this.isBaseLoop = isBaseLoop
   this.start()
 }
 
 Looper.prototype.start = function(){
   const obj = this
   let index = 0
+  obj.isStop = false
   co()
   function co(){
     if(obj.isStop == true){
       return
     }
     if(obj.array.length == index){
-      index = 0
+      if(obj.isBaseLoop == true){
+        index = 0
+        //ベースループの開始を通知
+        player.onStartBaseLoop()
+      }else{
+        return
+      }
     }
     if(obj.array[index] == undefined){
       return
@@ -50,21 +57,49 @@ Looper.prototype.stop = function(){
   this.isStop = true
 }
 
+/* ベースループ開始時にリセットされるタイマ */
 
-/* Looperの管理 */
+const loopTimer = {
+  startTime: 0,
+  init: function(){
+    this.reset()
+  },
+  reset: function(){
+    this.startTime = audioContext.currentTime * 1000
+  },
+  getTimeFromStartLoop: function(){
+    return audioContext.currentTime * 1000 - this.startTime
+  }
+}
+
+/* Loopの管理 */
 
 const player = {
   loopId: -1,
   loops: [],
-  startLoop: function(events){
+  loopTimer: null,
+  isRunning: function(){
+    console.log(this.loops.length)
+    return this.loops.length > 0
+  },
+  registLoop: function(events){
     console.log(events)
-    //ループ再生クラスを初期化してloopIdを振っていく
+    const isBaseLoop = loopStack.stack.length == 0 ? true : false
     this.loopId += 1
-    this.loops.push(new Looper(this.loopId, events))
+    this.loops.push(new Looper(this.loopId, events, isBaseLoop))
+
     return this.loopId
   },
-  stopLoop: function(id){
-    //idを持つループ再生クラスを削除
+  onStartBaseLoop: function(){
+    //ベースループ以外を頭出し
+    loopTimer.reset()
+    for(let i = 1; i < loopStack.stack.length; i++){
+      const id = loopStack.stack[i].id
+      this.loops[id].start()
+    }
+  },
+  unregistLoop: function(id){
+    //idを持つルーパークラスを削除
     this.loops[id].stop()
     this.loops[id] = undefined
   }
@@ -74,32 +109,42 @@ const loopStack = {
   stack: [],
   push: function(events, isDynamicMacro){
     const length = events.length
+    const isRunning = player.isRunning()
+    let dynamicmacro = []
+
     if(length < 1){
       return
     }
-    let dynamicmacro = []
     // if(isDynamicMacro == true){
       dynamicmacro = findRep(events, compareEvent)
     // }
+    if(isRunning){
+      events.unshift({time: events[0].fromLoop})
+    }
     if(dynamicmacro.length < 1){
       const currentTime = audioContext.currentTime * 1000
       const deltaTime = currentTime - events[length - 1].rTimeStamp
       events.push({time: deltaTime, timeStamp: currentTime / 1000})
     }
-    const loopId = player.startLoop(dynamicmacro.length > 0 ? dynamicmacro : events)
+    const loopId = player.registLoop(dynamicmacro.length > 0 ? dynamicmacro : events)
     this.stack.push({id: loopId, length: length, dynamicmacro: dynamicmacro.length > 0})
+
+    if(!isRunning){
+      loopTimer.init()
+    }
+
     this.draw()
   },
   pop: function(){
     if(this.stack.length < 1){
       return
     }
-    player.stopLoop(this.stack.pop().id)
+    player.unregistLoop(this.stack.pop().id)
     this.draw()
   },
   clear: function(){
     this.stack.forEach(function(loop, index, array){
-      player.stopLoop(loop.id)
+      player.unregistLoop(loop.id)
     })
     this.stack = []
     this.draw()
@@ -119,10 +164,12 @@ const loopStack = {
 
 const events = {
   array: [],
+  //全イベントが格納される
   push: function(events){
     this.array.push(events)
   },
   record: function(e){
+    const fromLoop = player.isRunning() ? loopTimer.getTimeFromStartLoop() : 0
     e.rTimeStamp = audioContext.currentTime * 1000
 
     if(this.getLength() > 0){
@@ -136,7 +183,7 @@ const events = {
         const time = document.createElement('div')
         time.innerHTML = this.getLength() + ': ' + Math.floor(deltaTime) + 'msec'
         eventsHtml.prepend(time)
-        this.push({time: deltaTime, timeStamp: currentTime})
+        this.push({fromLoop: fromLoop, time: deltaTime, timeStamp: currentTime})
       }
     }
 
@@ -149,8 +196,9 @@ const events = {
     text += `note: ${note}${octave}, vel: ${velocity}`
     event.innerHTML = this.getLength() + ': ' + text
     eventsHtml.prepend(event)
+    e.fromLoop = fromLoop
     this.push(e)
-    //MIDIMessage.timeStampとAudioContext.currentTimeは時間単位以外同じ
+    //MIDIMessage.timeStamp == AudioContext.currentTime * 1000
   },
   copy: function(){
     return this.array.slice()
@@ -265,7 +313,7 @@ const isSameData = function(originData, compareData){
 }
 
 const compareEvent = function(origin, compare){
-  // timeか、dataか
+  // timeか，dataか
   const isTimeOrigin = origin.hasOwnProperty('time')
   const isTimeCompare = compare.hasOwnProperty('time')
    if(isTimeOrigin != undefined && isTimeCompare != undefined){
@@ -283,11 +331,11 @@ const compareEvent = function(origin, compare){
   return false
 }
 
-const findRep = function(a, compare) {
+const findRep = function(array, compare) {
   if(compare === undefined){
     compare = (x, y) => { return x === y }
   }
-  const len = a.length;
+  const len = array.length;
   let res = [];
   let i, j, k
   //1回半くらい弾いて予測する
@@ -295,12 +343,12 @@ const findRep = function(a, compare) {
     if (len - 4 - k < 0) {
       continue
     }
-    if (!compare(a[len - 1], a[len - 3 - k]) ||
-        !compare(a[len - 2], a[len - 4 - k])
+    if (!compare(array[len - 1], array[len - 3 - k]) ||
+        !compare(array[len - 2], array[len - 4 - k])
       ) {
       continue
     }
-    res = a.slice(len - 3 - k, len - 1)
+    res = array.slice(len - 3 - k, len - 1)
   }
   return res
 }
