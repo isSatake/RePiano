@@ -165,10 +165,7 @@ const loopStack = {
 const events = {
   array: [],
   //全イベントが格納される
-  push: function(events){
-    this.array.push(events)
-  },
-  record: function(e){
+  push: function(e){
     const fromLoop = player.isRunning() ? loopTimer.getTimeFromStartLoop() : 0
     e.rTimeStamp = audioContext.currentTime * 1000
 
@@ -183,7 +180,7 @@ const events = {
         const time = document.createElement('div')
         time.innerHTML = this.getLength() + ': ' + Math.floor(deltaTime) + 'msec'
         eventsHtml.prepend(time)
-        this.push({fromLoop: fromLoop, time: deltaTime, timeStamp: currentTime})
+        this.array.push({fromLoop: fromLoop, time: deltaTime, timeStamp: currentTime})
       }
     }
 
@@ -197,7 +194,7 @@ const events = {
     event.innerHTML = this.getLength() + ': ' + text
     eventsHtml.prepend(event)
     e.fromLoop = fromLoop
-    this.push(e)
+    this.array.push(e)
     //MIDIMessage.timeStamp == AudioContext.currentTime * 1000
   },
   copy: function(){
@@ -271,7 +268,7 @@ const handleMIDIMessage = function(e){
   if(e.target.id != inputId){
     return
   }
-  events.record(e, false)
+  events.push(e, false)
   send(e)
 }
 
