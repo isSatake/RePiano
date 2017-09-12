@@ -74,21 +74,57 @@ const loopTimer = {
 
 /* Loopの管理 */
 
+const debugEvents = (array) => {
+  let str = "["
+  for(let event of array){
+    if(event.time > 0){
+      str += Math.floor(event.time)
+    }else{
+      str += getNoteName(event.data[1])
+      str += isNoteOn(event.data[0]) ? "on" : "of"
+    }
+    str += ", "
+  }
+  str += "]"
+  console.log(str)
+}
+
 const player = {
   loopId: -1,
   loops: [],
   loopTimer: null,
-  isRunning: function(){
-    console.log(this.loops.length)
-    return this.loops.length > 0
-  },
-  registLoop: function(events){
-    console.log(events)
-    const isBaseLoop = loopStack.stack.length == 0 ? true : false
-    this.loopId += 1
+  maxDuration: 0,
+  registLoop: function(events, isBaseLoop){
+    const dynamicmacro = findRep(events)
+    const isDynamicMacro = dynamicmacro != null
+    let loop = []
+
+    this.loopId++
+
+    if(isBaseLoop){
+      if(isDynamicMacro){
+        events = dynamicmacro
+        this.maxDuration = getDuration(events)
+        console.log(`maxduration: ${this.maxDuration}`)
+      } else {
+        const currentTime = audioContext.currentTime * 1000
+        const deltaTime = currentTime - events[events.length - 1].rTimeStamp
+        events.push({time: deltaTime, timeStamp: currentTime / 1000})
+      }
+
+    }else{
+      //eventsの長さをbaseLoop*2の時間内に収める
+      events = isDynamicMacro == true ? dynamicmacro : events
+      events = clampDuration(events, this.maxDuration)
+      events.unshift({time: events[0].fromLoop})
+      loopTimer.init()
+    }
+
+    console.log("registered")
+    debugEvents(events)
     this.loops.push(new Looper(this.loopId, events, isBaseLoop))
 
-    return this.loopId
+    return {id: this.loopId, duration: getDuration(events), length: events.length, dynamicmacro: isDynamicMacro}
   },
   onStartBaseLoop: function(){
     //ベースループ以外を頭出し
@@ -105,34 +141,46 @@ const player = {
   }
 }
 
+const getDuration = function(events){
+  let duration = 0
+
+  events.forEach((event) => {
+    duration += event.time > 0 ? event.time : 0
+  })
+
+  return duration
+}
+
+const clampDuration = function(events, maxDuration){
+  let duration = 0
+  let clamped = []
+
+  for(let i = events.length - 1; i >= 0; i--){
+    if(duration > maxDuration){
+      return clamped
+    }
+
+    clamped.unshift(events[i])
+    duration += events[i].time > 0 ? events[i].time : 0
+  }
+
+  return events
+}
+
+/* 再生中のループとView管理 */
+
 const loopStack = {
   stack: [],
+  maxDuration: 0,
+  isRunning: function(){
+    return this.stack.length > 0
+  },
   push: function(events, isDynamicMacro){
-    const length = events.length
-    const isRunning = player.isRunning()
-    let dynamicmacro = []
-
-    if(length < 1){
+    if(events.length < 1){
       return
     }
-    // if(isDynamicMacro == true){
-      dynamicmacro = findRep(events, compareEvent)
-    // }
-    if(isRunning){
-      events.unshift({time: events[0].fromLoop})
-    }
-    if(dynamicmacro.length < 1){
-      const currentTime = audioContext.currentTime * 1000
-      const deltaTime = currentTime - events[length - 1].rTimeStamp
-      events.push({time: deltaTime, timeStamp: currentTime / 1000})
-    }
-    const loopId = player.registLoop(dynamicmacro.length > 0 ? dynamicmacro : events)
-    this.stack.push({id: loopId, length: length, dynamicmacro: dynamicmacro.length > 0})
 
-    if(!isRunning){
-      loopTimer.init()
-    }
-
+    this.stack.push(player.registLoop(events, !this.isRunning()))
     this.draw()
   },
   pop: function(){
@@ -153,7 +201,7 @@ const loopStack = {
     loopsHtml.innerHTML = ''
     this.stack.forEach(function(loop, index, array){
       const div = document.createElement('div')
-      div.innerHTML = `loop: ${loop.id} length: ${loop.length} ${loop.dynamicmacro ? 'dynamicmacro' : ''}`
+      div.innerHTML = `loop: ${loop.id} duration: ${Math.round(loop.duration) / 1000}s ${loop.dynamicmacro ? 'dm' : ''}`
       loopsHtml.prepend(div)
     })
   }
@@ -166,7 +214,7 @@ const events = {
   array: [],
   //全イベントが格納される
   push: function(e){
-    const fromLoop = player.isRunning() ? loopTimer.getTimeFromStartLoop() : 0
+    const fromLoop = loopStack.isRunning() ? loopTimer.getTimeFromStartLoop() : 0
     e.rTimeStamp = audioContext.currentTime * 1000
 
     if(this.getLength() > 0){
@@ -184,12 +232,11 @@ const events = {
       }
     }
 
-    const isNoteOn = e.data[0].toString(16) == 90 ? true : false
-    const note = NOTES[e.data[1] % 12]
+    const note = getNoteName(e.data[1])
     const octave = Math.floor((e.data[1] / 12) - 1)
     const velocity = e.data[2]
     const event = document.createElement('div')
-    let text = isNoteOn ? "note on, " : "note off, "
+    let text = isNoteOn(e.data[0]) ? "note on, " : "note off, "
     text += `note: ${note}${octave}, vel: ${velocity}`
     event.innerHTML = this.getLength() + ': ' + text
     eventsHtml.prepend(event)
@@ -216,6 +263,14 @@ const events = {
     this.array = []
     eventsHtml.innerHTML = ' '
   }
+}
+
+const getNoteName = (n) => {
+  return NOTES[n % 12]
+}
+
+const isNoteOn = (n) => {
+  return n.toString(16) == 90 ? true : false
 }
 
 const recAndPlay = function(){
@@ -277,12 +332,11 @@ const handleMIDIMessage = function(e){
 
 const playInternal = function(array){
   const data = array.data
-  const isNoteOn = data[0].toString(16) == 90 ? true : false
   const note = data[1]
   const velocity = data[2]
   const noteName = NOTES[note % 12]
   const octave = (note / 12) - 1
-  if(isNoteOn){
+  if(isNoteOn(data[0])){
     piano.play(noteName, octave, 2)
   }
 }
@@ -309,7 +363,7 @@ const isSameData = function(originData, compareData){
         )
 }
 
-const compareEvent = function(origin, compare){
+const compare = function(origin, compare){
   // timeか，dataか
   const isTimeOrigin = origin.hasOwnProperty('time')
   const isTimeCompare = compare.hasOwnProperty('time')
@@ -328,24 +382,66 @@ const compareEvent = function(origin, compare){
   return false
 }
 
-const findRep = function(array, compare) {
-  if(compare === undefined){
-    compare = (x, y) => { return x === y }
+const findRep = (array) => {
+  let arr = array.concat()
+  arr = eventReverse(arr)
+  console.log("origin")
+  debugEvents(arr)
+
+  let searchIndex = 3
+  let dptr0 = eventIndexOf(arr, arr.slice(0, searchIndex), searchIndex)
+  let dptr = dptr0
+  let maxptr
+
+  if(dptr0 < 0){
+    return null
   }
-  const len = array.length;
-  let res = [];
-  let i, j, k
-  //1回半くらい弾いて予測する
-  for(k = 0; k < len - 3; k++){
-    if (len - 4 - k < 0) {
-      continue
+
+
+  while(dptr0 > 0){
+    if(dptr0 == searchIndex){
+      maxptr = searchIndex
     }
-    if (!compare(array[len - 1], array[len - 3 - k]) ||
-        !compare(array[len - 2], array[len - 4 - k])
-      ) {
-      continue
-    }
-    res = array.slice(len - 3 - k, len - 1)
+    searchIndex++
+    dptr = dptr0
+    dptr0 = eventIndexOf(arr, arr.slice(0, searchIndex), searchIndex)
   }
-  return res
+
+  //[note, deltatime, note]を最小単位とする
+  if(searchIndex == 4){
+    return null
+  }
+
+  if(maxptr == null){
+    searchIndex--
+    const predictstr = arr.slice(0, dptr)
+    console.log("predict")
+    debugEvents(predictstr)
+    const main = predictstr.concat(arr.slice(0, searchIndex))
+    return {a: eventReverse(predictstr), b: eventReverse(main.slice(predictstr.length).concat(predictstr))}.a
+  }
+
+  return array.slice(0, maxptr)
+}
+
+const eventIndexOf = (arr, arg, start = 0) => {
+  const arrlen = arr.length
+  const arglen = arg.length
+  let argIndex = 0
+
+  for(let i = start; i < arrlen; i++){
+    if(compare(arg[argIndex], arr[i]))  {
+      argIndex++
+      if(argIndex == arglen){
+        return i + 1 - argIndex
+      }
+    }
+  }
+
+  return -1
+}
+
+const eventReverse = (arr) => {
+  const _arr = arr.concat()
+  return _arr.reverse()
 }
