@@ -9,17 +9,21 @@ let inputs, outputs, inputId, outputDevice
 
 /* Looper Class */
 
-function Looper(id, events, isBaseLoop) {
+function Looper(id, events, isBaseLoop, startIndex = 0) {
   this.id = id
   this.array = events
   this.isStop = false
   this.isBaseLoop = isBaseLoop
-  this.start()
+
+  if(startIndex < 0){
+    return
+  }
+  this.start(startIndex)
 }
 
-Looper.prototype.start = function(){
+Looper.prototype.start = function(startIndex = 0){
   const obj = this
-  let index = 0
+  let index = startIndex
   obj.isStop = false
   co()
   function co(){
@@ -115,19 +119,36 @@ const player = {
         events.push({time: deltaTime, timeStamp: currentTime / 1000})
       }
 
+      loopTimer.init()
       this.maxDuration = getDuration(events)
+      this.loops.push(new Looper(this.loopId, events, isBaseLoop))
 
     }else{
       //eventsの長さをbaseLoop*2の時間内に収める
+      const fromLoop = events[0].fromLoop
+      const fromStart = loopTimer.getTimeFromStartLoop()
+      const sleep = fromStart > fromLoop ? 0 : fromLoop - fromStart
+      const startIndex = fromStart > fromLoop ? -1 : 1
       events = isDynamicMacro == true ? dynamicmacro : events
       events = clampDuration(events, this.maxDuration)
-      events.unshift({time: events[0].fromLoop})
-      loopTimer.init()
+      events.unshift({time: fromLoop})
+      //待つ
+      setTimeout(() => {
+        this.loops.push(new Looper(this.loopId, events, isBaseLoop, startIndex))
+      }, sleep) //登録だけして，再生しない状態を作りたい
+
+      console.log(`TL = ${fromLoop}`)
+      console.log(`Tl = ${fromStart}`)
+      console.log(`Tl' = ${sleep}`)
+      // setTimeout(() => {
+      //   this.loops.push(new Looper(this.loopId, events, isBaseLoop, 1))
+      // }, sleep > 0 ? sleep : this.maxDuration - loopTimer.getTimeFromStartLoop())
+      // this.loops.push(new Looper(this.loopId, events, isBaseLoop))
     }
 
     console.log("registered")
     debugEvents(events)
-    this.loops.push(new Looper(this.loopId, events, isBaseLoop))
+    // this.loops.push(new Looper(this.loopId, events, isBaseLoop))
 
     return {id: this.loopId, duration: getDuration(events), length: events.length, dynamicmacro: isDynamicMacro}
   },
@@ -136,7 +157,7 @@ const player = {
     loopTimer.reset()
     for(let i = 1; i < loopStack.stack.length; i++){
       const id = loopStack.stack[i].id
-      this.loops[id].start()
+      this.loops[id].start() //ここが二重再生の原因
     }
   },
   unregistLoop: function(id){
