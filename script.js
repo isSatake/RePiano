@@ -75,6 +75,10 @@ const loopTimer = {
 /* Loopの管理 */
 
 const debugEvents = (array) => {
+  if(array === undefined){
+    return
+  }
+
   let str = "["
   for(let event of array){
     if(event.time > 0){
@@ -104,13 +108,14 @@ const player = {
     if(isBaseLoop){
       if(isDynamicMacro){
         events = dynamicmacro
-        this.maxDuration = getDuration(events)
         console.log(`maxduration: ${this.maxDuration}`)
       } else {
         const currentTime = audioContext.currentTime * 1000
         const deltaTime = currentTime - events[events.length - 1].rTimeStamp
         events.push({time: deltaTime, timeStamp: currentTime / 1000})
       }
+
+      this.maxDuration = getDuration(events)
 
     }else{
       //eventsの長さをbaseLoop*2の時間内に収める
@@ -397,14 +402,22 @@ const findRep = (array) => {
     return null
   }
 
+  const len = arr.length
+  let predictstr
 
-  while(dptr0 > 0){
+  while(searchIndex * 2 < len){
     if(dptr0 == searchIndex){
       maxptr = searchIndex
     }
     searchIndex++
     dptr = dptr0
     dptr0 = eventIndexOf(arr, arr.slice(0, searchIndex), searchIndex)
+
+    if(dptr0 > 0){
+      predictstr = eventReverse(arr.slice(0, dptr))
+      console.log("candidate")
+      debugEvents(predictstr)
+    }
   }
 
   //[note, deltatime, note]を最小単位とする
@@ -412,16 +425,9 @@ const findRep = (array) => {
     return null
   }
 
-  if(maxptr == null){
-    searchIndex--
-    const predictstr = arr.slice(0, dptr)
-    console.log("predict")
-    debugEvents(predictstr)
-    const main = predictstr.concat(arr.slice(0, searchIndex))
-    return {a: eventReverse(predictstr), b: eventReverse(main.slice(predictstr.length).concat(predictstr))}.a
-  }
-
-  return array.slice(0, maxptr)
+  console.log("predict")
+  debugEvents(predictstr)
+  return predictstr
 }
 
 const eventIndexOf = (arr, arg, start = 0) => {
@@ -442,6 +448,5 @@ const eventIndexOf = (arr, arg, start = 0) => {
 }
 
 const eventReverse = (arr) => {
-  const _arr = arr.concat()
-  return _arr.reverse()
+  return arr.concat().reverse()
 }
