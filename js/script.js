@@ -4,6 +4,7 @@ const eventsHtml = document.getElementById('events')
 const loopsHtml = document.getElementById('loops')
 const piano = Synth.createInstrument('piano')
 const audioContext = new AudioContext()
+let isSoundOn = true
 let inputs, outputs, inputId, outputDevice
 
 /* Looper Class */
@@ -315,6 +316,10 @@ const undo = function(){
   loopStack.pop()
 }
 
+const switchSound = function(){
+  isSoundOn = document.getElementById('soundswitch').checked
+}
+
 
 /* MIDI */
 
@@ -365,15 +370,13 @@ const playInternal = function(array){
 }
 
 const send = function(array){
-  if(outputDevice == undefined){
-    return
-  }
-  outputDevice.send(array)
-
   if(isSoundOn == true){
-    return
+    playInternal(array)
   }
-  playInternal(array)
+
+  if(outputDevice != undefined){
+  outputDevice.send(array)
+  }
 }
 
 

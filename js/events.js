@@ -14,6 +14,10 @@ const onClickClear = function(){
   clear()
 }
 
+const onChangeSwitch = function(){
+  switchSound()
+}
+
 $(function(){
   navigator.requestMIDIAccess().then(successCallback, errorCallback)
 
