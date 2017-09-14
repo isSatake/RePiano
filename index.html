@@ -2,25 +2,27 @@
 <head>
   <title>Re:Piano</title>
   <meta charset="utf-8"/>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/materialize.min.css">
 </head>
 <body>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.3/jquery.min.js"></script>
-  <script src="audiosynth.js"></script>
+  <script src="js/jquery-3.2.1.min.js"></script>
+  <script src="js/materialize.min.js"></script>
+  <script src="js/audiosynth.js"></script>
   🎹
   <span id="inputdevice">
   </span>
   <div id="controls">
-    <button id="recAndPlay" onclick="onClickRecPlay();">録音再生(1)</button>
+    <a id="recAndPlay" class="waves-effect waves-light btn" onclick="onClickRecPlay();">録音再生(1)</a>
     <!-- <button id="dynamicmacro" onclick="onClickDM();">DynamicMacro(2)</button> -->
-    <button id="undo" onclick="onClickUndo();">やり直し(2)</button>
+    <a id="undo" class="waves-effect waves-light btn" onclick="onClickUndo();">やり直し(2)</a>
     <!-- <button id="clear" onclick="onClickClear();">Clear(4)</button> -->
   </div>
   <div id="events">
   </div>
   <div id="loops">
   </div>
-  <script src="script.js"></script>
-  <script src="events.js"></script>
+  <script src="js/script.js"></script>
+  <script src="js/events.js"></script>
 </body>
 </html>

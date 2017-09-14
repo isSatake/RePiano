@@ -1,3 +1,8 @@
+body {
+  padding: 20px;
+  font-size: 20px;
+}
+
 #controls {
   margin: 10px 0 20px 0;
 }

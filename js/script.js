@@ -365,10 +365,15 @@ const playInternal = function(array){
 }
 
 const send = function(array){
-  playInternal(array)
-  if(outputDevice != undefined){
-    outputDevice.send(array)
+  if(outputDevice == undefined){
+    return
   }
+  outputDevice.send(array)
+
+  if(isSoundOn == true){
+    return
+  }
+  playInternal(array)
 }
 
 
