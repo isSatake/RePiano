@@ -1,6 +1,5 @@
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 const inputEl = document.getElementById('inputdevice')
-const outputEl = document.getElementById('outputdevice')
 const eventsHtml = document.getElementById('events')
 const loopsHtml = document.getElementById('loops')
 const piano = Synth.createInstrument('piano')
@@ -331,11 +330,9 @@ const successCallback = function(access) {
   }
 
   outputs = access.outputs
-  outputEl.innerHTML = "no supported devices"
   for(let output of outputs.values()) {
     if(output.name.indexOf("KEY") < 0){
       outputDevice = output
-      outputEl.innerHTML = output.name
       return
     }
   }
