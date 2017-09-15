@@ -38,5 +38,18 @@ $(function(){
       default:
         break;
     }
+    if(keymap[e.keyCode] == undefined){
+      return
+    }
+
+    handleMIDIMessage({data: [144, keymap[e.keyCode], 100]})
+    console.log(e.keyCode)
+  })
+
+  $(window).keyup(function(e){
+    if(keymap[e.keyCode] == undefined){
+      return
+    }
+    handleMIDIMessage({data: [128, keymap[e.keyCode], 100]})
   })
 })

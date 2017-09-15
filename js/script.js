@@ -248,7 +248,7 @@ const events = {
         deltaTime = 0
       }else{
         const time = document.createElement('div')
-        time.innerHTML = this.getLength() + ': ' + Math.floor(deltaTime) + 'msec'
+        time.innerHTML = `🕑 ${Math.floor(deltaTime)}msec`
         eventsHtml.prepend(time)
         this.array.push({fromLoop: fromLoop, time: deltaTime, timeStamp: currentTime})
       }
@@ -260,7 +260,7 @@ const events = {
     const event = document.createElement('div')
     let text = isNoteOn(e.data[0]) ? "note on, " : "note off, "
     text += `note: ${note}${octave}, vel: ${velocity}`
-    event.innerHTML = this.getLength() + ': ' + text
+    event.innerHTML = `♪ ${text}`
     eventsHtml.prepend(event)
     e.fromLoop = fromLoop
     this.array.push(e)
@@ -321,12 +321,12 @@ const switchSound = function(){
 
 const successCallback = function(access) {
   inputs = access.inputs
-  inputEl.innerHTML = "no supported devices"
+  inputEl.innerHTML = "🎹 no supported devices"
   for(let input of inputs.values()) {
     if(input.name.indexOf("KEYBOARD") > 0){
       inputId = input.id
       input.onmidimessage = handleMIDIMessage
-      inputEl.innerHTML = input.name
+      inputEl.innerHTML = `🎹 ${input.name}`
     }
   }
 
@@ -340,13 +340,14 @@ const successCallback = function(access) {
 }
 
 const errorCallback = function(msg) {
+  inputEl.innerHTML = "🎹 ERROR: reconnect device and restart browser"
   console.log("[ERROR] ", msg);
 }
 
 const handleMIDIMessage = function(e){
-  if(e.target.id != inputId){
-    return
-  }
+  // if(e.target.id != inputId){
+  //   return
+  // }
   events.push(e, false)
   send(e)
 }
