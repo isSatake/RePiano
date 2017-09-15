@@ -105,14 +105,13 @@ const player = {
   registLoop: function(events, isBaseLoop){
     const dynamicmacro = findRep(events)
     const isDynamicMacro = dynamicmacro != null
-    let loop = []
+    let loop, duration
 
     this.loopId++
 
     if(isBaseLoop){
       if(isDynamicMacro){
         events = dynamicmacro
-        console.log(`maxduration: ${this.maxDuration}`)
       } else {
         const currentTime = audioContext.currentTime * 1000
         const deltaTime = currentTime - events[events.length - 1].rTimeStamp
@@ -120,7 +119,9 @@ const player = {
       }
 
       loopTimer.init()
-      this.maxDuration = getDuration(events)
+      duration = getDuration(events)
+      this.maxDuration = duration
+      console.log(`maxduration: ${this.maxDuration}`)
       this.loops.push(new Looper(this.loopId, events, isBaseLoop))
 
     }else{
@@ -132,25 +133,20 @@ const player = {
       events = isDynamicMacro == true ? dynamicmacro : events
       events = clampDuration(events, this.maxDuration)
       events.unshift({time: fromLoop})
-      //待つ
       setTimeout(() => {
         this.loops.push(new Looper(this.loopId, events, isBaseLoop, startIndex))
-      }, sleep) //登録だけして，再生しない状態を作りたい
+      }, sleep)
+      duration = undefined
 
       console.log(`TL = ${fromLoop}`)
       console.log(`Tl = ${fromStart}`)
       console.log(`Tl' = ${sleep}`)
-      // setTimeout(() => {
-      //   this.loops.push(new Looper(this.loopId, events, isBaseLoop, 1))
-      // }, sleep > 0 ? sleep : this.maxDuration - loopTimer.getTimeFromStartLoop())
-      // this.loops.push(new Looper(this.loopId, events, isBaseLoop))
     }
 
     console.log("registered")
     debugEvents(events)
-    // this.loops.push(new Looper(this.loopId, events, isBaseLoop))
 
-    return {id: this.loopId, duration: getDuration(events), length: events.length, dynamicmacro: isDynamicMacro}
+    return {id: this.loopId, duration: duration, length: events.length, dynamicmacro: isDynamicMacro}
   },
   onStartBaseLoop: function(){
     //ベースループ以外を頭出し
@@ -227,7 +223,7 @@ const loopStack = {
     loopsHtml.innerHTML = ''
     this.stack.forEach(function(loop, index, array){
       const div = document.createElement('div')
-      div.innerHTML = `loop: ${loop.id} duration: ${Math.round(loop.duration) / 1000}s ${loop.dynamicmacro ? 'dm' : ''}`
+      div.innerHTML = `loop: ${loop.id} ${loop.duration ? 'duration: ' + Math.round(loop.duration) / 1000 + 's' : ''} ${loop.dynamicmacro ? 'dm' : ''}`
       loopsHtml.prepend(div)
     })
   }
