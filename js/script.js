@@ -43,6 +43,11 @@ Looper.prototype.start = function(startIndex = 0){
       return
     }
     const e = obj.array[index]
+    if(e.type == "chord"){
+      for(let event of e.data){
+        send(event)
+      }
+    }
     if(e.data){
       send(e)
       index++
