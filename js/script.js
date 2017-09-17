@@ -237,15 +237,23 @@ const events = {
   //全イベントが格納される
   push: function(e){
     const fromLoop = loopStack.isRunning() ? loopTimer.getTimeFromStartLoop() : 0
+    const last = this.array[this.getLength() - 1]
     e.rTimeStamp = audioContext.currentTime * 1000
 
     if(this.getLength() > 0){
       const currentTime = audioContext.currentTime
-      let deltaTime = e.rTimeStamp - this.array[this.getLength() - 1].rTimeStamp
+      let deltaTime = e.rTimeStamp - last.rTimeStamp
       if(deltaTime >= 2000){
         this.clear()
       }else if(deltaTime <= 15){
-        deltaTime = 0
+        e.fromLoop = fromLoop
+        if(last.type == "chord"){
+          last.data.push(e)
+        }else{
+          this.array[this.getLength() - 1] = {type: "chord", data: [last, e], rTimeStamp: e.rTimeStamp}
+        }
+
+        return
       }else{
         const time = document.createElement('div')
         time.innerHTML = `🕑 ${Math.floor(deltaTime)}msec`
@@ -345,9 +353,6 @@ const errorCallback = function(msg) {
 }
 
 const handleMIDIMessage = function(e){
-  // if(e.target.id != inputId){
-  //   return
-  // }
   events.push(e, false)
   send(e)
 }
@@ -372,7 +377,7 @@ const send = function(array){
   }
 
   if(outputDevice != undefined){
-  outputDevice.send(array)
+    outputDevice.send(array)
   }
 }
 
