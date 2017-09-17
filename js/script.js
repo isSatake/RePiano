@@ -87,6 +87,8 @@ const debugEvents = (array) => {
   for(let event of array){
     if(event.time > 0){
       str += Math.floor(event.time)
+    }else if(event.type == "chord"){
+      str += "chord"
     }else{
       str += getNoteName(event.data[1])
       str += isNoteOn(event.data[0]) ? "on" : "of"
@@ -245,7 +247,7 @@ const events = {
       let deltaTime = e.rTimeStamp - last.rTimeStamp
       if(deltaTime >= 2000){
         this.clear()
-      }else if(deltaTime <= 15){
+      }else if(deltaTime <= 30){
         e.fromLoop = fromLoop
         if(last.type == "chord"){
           last.data.push(e)
@@ -396,8 +398,24 @@ const isSameData = function(originData, compareData){
         )
 }
 
+const isSameChord = function(origin, compare) {
+  const _compare = compare.concat()
+  for(let i in origin){
+    if(_compare.length == 0){
+      return false
+    }
+    const index = eventIndexOf(_compare, origin[i])
+    if(index < 0){
+      return false
+    }
+    _compare.splice(index, 1)
+  }
+  return _compare.length == 0
+}
+
 const compare = function(origin, compare){
   // timeか，dataか
+  //originがundefined
   const isTimeOrigin = origin.hasOwnProperty('time')
   const isTimeCompare = compare.hasOwnProperty('time')
    if(isTimeOrigin != undefined && isTimeCompare != undefined){
@@ -407,9 +425,13 @@ const compare = function(origin, compare){
     }
   }
   if(!isTimeOrigin && !isTimeCompare){
-    // on/off, noteは同じか
-    if(isSameData(origin.data, compare.data)){
-      return true
+    if(origin.type != compare.type){
+      return false
+    }
+    if(origin.type == "chord" && compare.type == "chord"){
+      return isSameChord(origin.data, compare.data)
+    }else{
+      return isSameData(origin.data, compare.data)
     }
   }
   return false
@@ -462,12 +484,19 @@ const eventIndexOf = (arr, arg, start = 0) => {
   const arrlen = arr.length
   const arglen = arg.length
   let argIndex = 0
-
-  for(let i = start; i < arrlen; i++){
-    if(compare(arg[argIndex], arr[i]))  {
-      argIndex++
-      if(argIndex == arglen){
-        return i + 1 - argIndex
+  if(arg.type == "midimessage"){
+    for(let i = start; i < arrlen; i++){
+      if(compare(arg, arr[i])){
+        return i
+      }
+    }
+  }else{
+    for(let i = start; i < arrlen; i++){
+      if(compare(arg[argIndex], arr[i]))  {
+        argIndex++
+        if(argIndex == arglen){
+          return i + 1 - argIndex
+        }
       }
     }
   }
