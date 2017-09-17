@@ -144,10 +144,6 @@ const player = {
         this.loops.push(new Looper(this.loopId, events, isBaseLoop, startIndex))
       }, sleep)
       duration = undefined
-
-      console.log(`TL = ${fromLoop}`)
-      console.log(`Tl = ${fromStart}`)
-      console.log(`Tl' = ${sleep}`)
     }
 
     console.log("registered")
@@ -160,7 +156,7 @@ const player = {
     loopTimer.reset()
     for(let i = 1; i < loopStack.stack.length; i++){
       const id = loopStack.stack[i].id
-      this.loops[id].start() //ここが二重再生の原因
+      this.loops[id].start()
     }
   },
   unregistLoop: function(id){
@@ -480,6 +476,9 @@ const findRep = (array) => {
     return null
   }
 
+  if(predictstr != undefined){
+    predictstr.push(predictstr.shift())
+  }
   console.log("predict")
   debugEvents(predictstr)
   return predictstr
