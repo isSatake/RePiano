@@ -146,8 +146,8 @@ const player = {
       duration = undefined
     }
 
-    console.log("registered")
-    debugEvents(events)
+    // console.log("registered")
+    // debugEvents(events)
 
     return {id: this.loopId, duration: duration, length: events.length, dynamicmacro: isDynamicMacro}
   },
@@ -253,7 +253,7 @@ const events = {
         if(last.type == "chord"){
           last.data.push(e)
         }else{
-          this.array[this.getLength() - 1] = {type: "chord", data: [last, e], rTimeStamp: e.rTimeStamp}
+          this.array[this.getLength() - 1] = {type: "chord", data: [last, e], rTimeStamp: e.rTimeStamp, fromLoop: fromLoop}
         }
 
         return
@@ -441,8 +441,8 @@ const compare = function(origin, compare){
 const findRep = (array) => {
   let arr = array.concat()
   arr = eventReverse(arr)
-  console.log("origin")
-  debugEvents(arr)
+  // console.log("origin")
+  // debugEvents(arr)
 
   let searchIndex = 3
   let dptr0 = eventIndexOf(arr, arr.slice(0, searchIndex), searchIndex)
@@ -466,8 +466,8 @@ const findRep = (array) => {
 
     if(dptr0 > 0){
       predictstr = eventReverse(arr.slice(0, dptr))
-      console.log("candidate")
-      debugEvents(predictstr)
+      // console.log("candidate")
+      // debugEvents(predictstr)
     }
   }
 
@@ -479,8 +479,8 @@ const findRep = (array) => {
   if(predictstr != undefined){
     predictstr.push(predictstr.shift())
   }
-  console.log("predict")
-  debugEvents(predictstr)
+  // console.log("predict")
+  // debugEvents(predictstr)
   return predictstr
 }
 
